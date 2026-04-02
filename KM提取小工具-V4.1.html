@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>KM SMART PRO V4.1 - 交互逻辑完善版</title>
+    <style>
+        :root { --primary: #8b5cf6; --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --digitize: #3b82f6; }
+        body { font-family: 'Inter', system-ui, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
+        
+        .sidebar { width: 380px; padding: 20px; background: var(--card); border-right: 1px solid #334155; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; box-shadow: 4px 0 15px rgba(0,0,0,0.3); }
+        .main-content { flex: 1; position: relative; overflow: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; padding: 20px; }
+        
+        #nav-guide { width: 90%; padding: 12px; background: rgba(139, 92, 246, 0.15); border: 2px solid var(--primary); border-radius: 8px; text-align: center; margin-bottom: 10px; font-weight: bold; color: #a78bfa; z-index: 10; }
+        #canvas-wrapper { position: relative; border: 2px dashed #475569; background: #fff; line-height: 0; cursor: crosshair; min-width: 300px; min-height: 200px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        #canvas-wrapper:hover:not(.has-img) { background: #f8fafc; border-color: var(--primary); }
+        #canvas-wrapper.has-img { border: 2px solid #475569; }
+        canvas { display: block; }
+        #paste-hint { position: absolute; color: #94a3b8; font-size: 0.95rem; pointer-events: none; text-align: center; line-height: 1.6; }
+
+        #zoom-container { position: fixed; top: 20px; right: 20px; z-index: 100; display: none; flex-direction: column; align-items: center; pointer-events: none; }
+        #zoom-canvas { border: 3px solid var(--primary); border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.5); background: white; }
+        #coordinate-overlay { margin-top: 8px; background: rgba(15, 23, 42, 0.95); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--primary); color: white; font-family: monospace; font-size: 13px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .coord-val { color: var(--success); font-weight: bold; }
+
+        .card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 12px; }
+        .step-locked { opacity: 0.3; pointer-events: none; filter: grayscale(1); transition: 0.3s; }
+        
+        .tabs { display: flex; gap: 5px; margin-bottom: 5px; }
+        .tab-btn { flex: 1; padding: 10px; background: #334155; border: none; color: #94a3b8; cursor: pointer; border-radius: 6px; font-size: 0.8rem; font-weight: bold; transition: 0.2s; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        h2 { font-size: 0.85rem; margin: 0 0 10px 0; color: #a78bfa; text-transform: uppercase; }
+        button { width: 100%; padding: 10px; margin: 3px 0; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.85rem; color: white; }
+        .btn-p { background: var(--primary); }
+        .btn-g { background: #475569; }
+        .btn-o { background: var(--warning); }
+        .btn-d { background: var(--danger); }
+        .btn-digitize { background: var(--digitize); }
+        .reset-all-btn { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; margin-bottom: 5px; }
+
+        input[type="text"], input[type="number"] { width: 100%; padding: 10px; margin-top: 5px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white; box-sizing: border-box; }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin: 8px 0; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; background: #334155; border-radius: 3px; border: 1px solid #1e293b; cursor: pointer; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--primary); margin-top: -6px; cursor: pointer; box-shadow: 0 0 5px rgba(0,0,0,0.5); transition: 0.2s ease; }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); background: #a78bfa; }
+
+        .label-group { display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: #94a3b8; margin-top: 10px; }
+        .info-tip { display: inline-block; width: 14px; height: 14px; background: #475569; color: #fff; border-radius: 50%; text-align: center; line-height: 14px; font-size: 10px; cursor: help; margin-left: 5px; position: relative; }
+        .info-tip:hover::after { content: attr(data-tip); position: absolute; left: 20px; top: 0; width: 220px; background: #1e293b; color: #f1f5f9; padding: 8px; border-radius: 4px; border: 1px solid #8b5cf6; z-index: 100; text-align: left; line-height: 1.4; font-weight: normal; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+
+        #digitize-list { max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 6px; margin-top: 8px; font-size: 0.7rem; padding: 5px; border: 1px solid #334155; }
+        .digitize-item { display: flex; justify-content: space-between; padding: 5px 8px; border-bottom: 1px solid #1e293b; font-family: monospace; }
+        
+        #color-monitor { font-size: 0.75rem; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; display: flex; align-items: center; gap: 15px; margin-top: 10px; border: 1px solid #334155; }
+        #active-color-swatch { width: 30px; height: 30px; border-radius: 6px; border: 2px solid #fff; }
+        
+        table { width: 100%; font-size: 0.65rem; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #334155; padding: 5px; text-align: center; }
+        #eraser-cursor { position: fixed; border: 2px solid white; border-radius: 50%; pointer-events: none; display: none; z-index: 9999; mix-blend-mode: difference; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div style="font-weight: 900; font-size: 1.1rem; color: var(--primary); text-align: center; margin-bottom:5px;">KM SMART PRO V4.1</div>
+    <button class="reset-all-btn" onclick="masterReset()">🔄 一键全网页初始化</button>
+
+    <div class="card" id="card-1">
+        <h2>1. 图片导入与标定</h2>
+        <input type="file" id="upload" accept="image/*" onclick="this.value=null">
+        <div style="font-size:0.75rem; color:#94a3b8; margin-top:10px;">X轴最大月数 (请直接输入): 
+            <input type="number" id="maxXValue" value="36" autocomplete="off" spellcheck="false" style="padding:5px; background:#0f172a; color:white; border:1px solid #475569; width:60px;">
+        </div>
+        <button class="btn-g" style="margin-top:8px; font-size:0.75rem;" onclick="resetCalibration()">📍 重新标定坐标系</button>
+    </div>
+
+    <div class="tabs step-locked lockable-ui" id="tab-nav">
+        <button class="tab-btn active" onclick="switchTab(this, 'mode-a-ui')">方案A: 魔棒识别</button>
+        <button class="tab-btn" onclick="switchTab(this, 'mode-b-ui')">方案B: 手动取点</button>
+    </div>
+
+    <div id="mode-a-ui" class="tab-content active lockable-ui step-locked">
+        <div class="card">
+            <h2>方案A: 魔棒自动提取</h2>
+            <button class="btn-g" onclick="setMode('picker')">🖊️ 吸取曲线颜色</button>
+            <div id="color-monitor">
+                <div id="active-color-swatch" style="background: transparent;"></div>
+                <div style="flex:1; font-family: monospace; font-size: 0.7rem;">H:<span id="hsv-h">--</span> S:<span id="hsv-s">--</span> V:<span id="hsv-v">--</span></div>
+            </div>
+            
+            <div class="label-group">
+                <span>容差 (色彩差异) <span class="info-tip" data-tip="控制抓取颜色的严格程度。彩色线建议10-20，灰/黑线建议30-50。数值过大会导致跨线！">i</span></span>
+                <span id="tol-val" style="color:var(--primary); font-weight:bold; font-family:monospace; font-size:0.9rem;">35</span>
+            </div>
+            <input type="range" id="tolerance" min="5" max="100" value="35" oninput="document.getElementById('tol-val').innerText = this.value">
+
+            <div class="label-group" style="margin-top:5px;">
+                <span style="color:#facc15;">断点跨度 (虚线专用) <span class="info-tip" data-tip="【实线】请保持在 3 左右。【虚线/断裂线】可拉高至 15~30，魔棒会自动像水波纹一样跳过空白区寻点。">i</span></span>
+                <span id="jump-val" style="color:var(--warning); font-weight:bold; font-family:monospace; font-size:0.9rem;">3</span>
+            </div>
+            <input type="range" id="jumpSpan" min="1" max="40" value="3" oninput="document.getElementById('jump-val').innerText = this.value">
+            
+            <button class="btn-p" style="margin-top:10px;" onclick="setMode('smart')">🛰️ 启动自动提取</button>
+            <button class="btn-g" style="font-size:0.75rem; margin-top:5px;" onclick="clearData()">🧹 清除当前提取线条</button>
+        </div>
+
+        <div class="card">
+            <h2>辅助修补工具</h2>
+            <div style="display:flex; gap:5px;">
+                <button class="btn-o" style="font-size:0.7rem; flex:1;" onclick="setMode('manual_add')">➕ 补大黄点</button>
+                <button class="btn-d" style="font-size:0.7rem; flex:1;" onclick="setMode('eraser')">🧼 圆形橡皮</button>
+            </div>
+            <div class="label-group">
+                <span>工具半径 <span class="info-tip" data-tip="控制橡皮擦擦除范围，以及黄色大补点的方块大小。">i</span></span>
+                <span id="brush-val" style="color:var(--primary); font-weight:bold; font-family:monospace; font-size:0.9rem;">18</span>
+            </div>
+            <input type="range" id="brushSize" min="5" max="60" value="18" oninput="document.getElementById('brush-val').innerText = this.value">
+        </div>
+
+        <div class="card">
+            <h2>计算与导出 (含 Hazard Rate)</h2>
+            <input type="text" id="targetX" value="12, 24, 36" placeholder="输入你想提取的 X 轴点 (如 6, 12, 24)" autocomplete="off" spellcheck="false">
+            <button class="btn-p" style="background:#059669; margin-top:5px;" onclick="processData()">📊 生成预览表格</button>
+            <button class="btn-g" style="background:#0d9488; font-size:0.75rem" onclick="exportToCSV_A()">💾 导出 CSV 文件</button>
+            <div id="table-output"></div>
+        </div>
+    </div>
+
+    <div id="mode-b-ui" class="tab-content lockable-ui step-locked">
+        <div class="card">
+            <h2>方案B: 数字化手动取点</h2>
+            <button class="btn-digitize" onclick="setMode('digitizer')">🖱️ 开启十字准星取点</button>
+            <div id="digitize-list"><div style="text-align:center; color:#64748b; padding:20px;">所见即所得：<br>点击图表，坐标将记录于此</div></div>
+            <div style="display:flex; gap:5px; margin-top:8px;">
+                <button class="btn-g" style="font-size:0.7rem; flex:1;" onclick="undoLastPoint()">↩️ 撤销上一笔</button>
+                <button class="btn-d" style="font-size:0.7rem; flex:1;" onclick="clearData()">🧹 清空所有点</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>计算与导出 (含 Hazard Rate)</h2>
+            <p style="font-size:0.7rem; color:#94a3b8; margin: 0 0 10px 0;">将根据上方列表顺序，自动进行风险率迭代计算。</p>
+            <button class="btn-p" style="background:#059669; margin-top:5px;" onclick="processData_B()">📊 生成数据表格</button>
+            <button class="btn-digitize" style="background:#0d9488; font-size:0.75rem; margin-top:5px;" onclick="exportToCSV_B()">💾 导出 CSV 文件</button>
+            <div id="table-output-b"></div>
+        </div>
+    </div>
+
+</div>
+
+<div class="main-content">
+    <div id="nav-guide">💡 请上传图片或 Ctrl+V 粘贴截图</div>
+    <div id="canvas-wrapper">
+        <div id="paste-hint">🖼️ 点击此处选择图片<br>或按 Ctrl+V 粘贴截图开始任务</div>
+        <canvas id="mainCanvas"></canvas>
+    </div>
+</div>
+
+<div id="zoom-container">
+    <canvas id="zoom-canvas" width="200" height="200"></canvas>
+    <div id="coordinate-overlay">Time: <span id="disp-x">---</span> | Surv: <span id="disp-y">---</span></div>
+</div>
+<div id="eraser-cursor"></div>
+
+<script>
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    const zoomContainer = document.getElementById('zoom-container');
+    const zoomCanvas = document.getElementById('zoom-canvas'); 
+    const zoomCtx = zoomCanvas.getContext('2d');
+    
+    const eraserCursor = document.getElementById('eraser-cursor');
+    const guide = document.getElementById('nav-guide');
+    const wrapper = document.getElementById('canvas-wrapper');
+    const pasteHint = document.getElementById('paste-hint');
+    const fileInput = document.getElementById('upload');
+    const hsvSwatch = document.getElementById('active-color-swatch');
+
+    let img = new Image(), mode = 'calibrate', calibration = [], points = [], targetHSV = null, targetRGB = null;
+    let isDrawing = false, lastProcessedData = [], lastProcessedData_B = [];
+
+    function clearTextSelection() {
+        if (window.getSelection) window.getSelection().removeAllRanges();
+        document.activeElement.blur(); 
+    }
+
+    function getFileNameDate() {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}${mm}${dd}`;
+    }
+
+    function calculateHazardRates(dataArray) {
+        let enrichedData = [];
+        let prevT = 0;
+        let cumulativeHazard = 0; 
+
+        dataArray.forEach(row => {
+            let t = parseFloat(row.time);
+            let s = parseFloat(row.rate);
+            let safeS = s <= 0 ? 0.00001 : s;
+            let dt = t - prevT;
+            let hr = "N/A";
+            let hrRaw = "N/A";
+            let interval = `${prevT}~${t}`;
+
+            if (dt > 0) {
+                let current_Total_H = -Math.log(safeS);
+                let hrValue = (current_Total_H - cumulativeHazard) / dt;
+                if (hrValue < 0) hrValue = 0;
+                hr = hrValue.toFixed(4); 
+                hrRaw = hrValue; 
+                cumulativeHazard += hrValue * dt;
+            }
+
+            enrichedData.push({ time: t.toFixed(2), rate: s.toFixed(4), interval: interval, hr: hr, hrRaw: hrRaw });
+            prevT = t; 
+        });
+        return enrichedData;
+    }
+
+    function resetCalibration() {
+        if (!img.src) return alert("请先载入图片！");
+        calibration = []; mode = 'calibrate';
+        document.querySelectorAll('.lockable-ui').forEach(el => el.classList.add('step-locked'));
+        refreshCanvas(); guide.innerText = "🎯 重新标定: 请点击 原点 (0, 0)";
+    }
+
+    function switchTab(btn, targetId) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active'); document.getElementById(targetId).classList.add('active');
+        points = []; lastProcessedData = []; lastProcessedData_B = [];
+        document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">所见即所得：<br>点击图表，坐标将记录于此</div>';
+        document.getElementById('table-output').innerHTML = ""; 
+        document.getElementById('table-output-b').innerHTML = ""; 
+        refreshCanvas();
+        mode = 'idle'; guide.innerText = "💡 已切换方案并清空画布，请重新提取";
+    }
+
+    function setMode(m) {
+        if (m !== 'calibrate' && calibration.length < 3) { alert("❌ 操作被拦截！\n请先在图上依次点击完成3点标定。"); return; }
+        mode = m; guide.innerText = "当前激活工具：" + m;
+    }
+
+    function masterReset() {
+        img = new Image(); ctx.clearRect(0,0,canvas.width,canvas.height);
+        canvas.width = 300; canvas.height = 200;
+        wrapper.classList.remove('has-img'); pasteHint.style.display = 'block';
+        calibration = []; points = []; targetHSV = null; targetRGB = null; mode = 'calibrate'; lastProcessedData = []; lastProcessedData_B = [];
+        
+        document.querySelectorAll('.step-locked').forEach(c => c.classList.add('step-locked'));
+        document.getElementById('tab-nav').classList.add('step-locked');
+        document.getElementById('mode-a-ui').classList.add('step-locked');
+        document.getElementById('mode-b-ui').classList.add('step-locked');
+
+        document.getElementById('table-output').innerHTML = "";
+        document.getElementById('table-output-b').innerHTML = "";
+        document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">所见即所得：<br>点击图表，坐标将记录于此</div>';
+        hsvSwatch.style.background = "transparent"; fileInput.value = ""; 
+        document.getElementById('hsv-h').innerText = "--"; document.getElementById('hsv-s').innerText = "--"; document.getElementById('hsv-v').innerText = "--";
+        guide.innerText = "💡 已全初始化。可以导入新图片"; zoomContainer.style.display = 'none';
+    }
+
+    function initImage(source) {
+        const tempImg = new Image();
+        tempImg.onload = () => {
+            img = tempImg; canvas.width = img.width; canvas.height = img.height;
+            wrapper.classList.add('has-img'); pasteHint.style.display = 'none';
+            calibration = []; points = []; targetHSV = null; targetRGB = null; mode = 'calibrate'; lastProcessedData = []; lastProcessedData_B = [];
+            document.querySelectorAll('.lockable-ui').forEach(el => el.classList.add('step-locked'));
+            document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">所见即所得：<br>点击图表，坐标将记录于此</div>';
+            document.getElementById('table-output').innerHTML = ""; document.getElementById('table-output-b').innerHTML = "";
+            refreshCanvas(); guide.innerText = "🎯 步骤1: 请点击图中的 原点 (0, 0)";
+        };
+        tempImg.src = source;
+    }
+
+    // 🚀 核心修复：点击中间画布区域也可以触发上传图片
+    wrapper.addEventListener('click', () => {
+        if (!img.src) fileInput.click();
+    });
+
+    fileInput.addEventListener('click', function(e) { e.stopPropagation(); this.value = ''; });
+    fileInput.addEventListener('change', function(e) { if (e.target.files && e.target.files[0]) { const r = new FileReader(); r.onload = (ev) => initImage(ev.target.result); r.readAsDataURL(e.target.files[0]); } });
+    window.addEventListener('paste', (e) => { const items = (e.clipboardData || e.originalEvent.clipboardData).items; for(let item of items) { if(item.type.indexOf('image') !== -1) { const r = new FileReader(); r.onload = (ev) => initImage(ev.target.result); r.readAsDataURL(item.getAsFile()); break; } } });
+
+    function getMousePos(e) { const rect = canvas.getBoundingClientRect(); return { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) }; }
+
+    canvas.onmouseleave = () => { zoomContainer.style.display = 'none'; eraserCursor.style.display = 'none'; };
+
+    canvas.onmousemove = (e) => {
+        if (!img.src) return;
+        const pos = getMousePos(e);
+        zoomContainer.style.display = 'flex';
+        zoomCtx.drawImage(canvas, pos.x-25, pos.y-25, 50, 50, 0, 0, 200, 200);
+        zoomCtx.strokeStyle='red'; zoomCtx.strokeRect(98,98,4,4);
+
+        if (calibration.length === 3) {
+            const val = calculateRealValue(pos);
+            document.getElementById('disp-x').innerText = val.time; document.getElementById('disp-y').innerText = val.rate;
+        } else {
+            document.getElementById('disp-x').innerText = "---"; document.getElementById('disp-y').innerText = "---";
+        }
+        
+        if (mode === 'eraser' || mode === 'manual_add' || mode === 'digitizer') {
+            const r = mode === 'digitizer' ? 4 : parseInt(document.getElementById('brushSize').value);
+            const rect = canvas.getBoundingClientRect(), ds = rect.width / canvas.width; 
+            eraserCursor.style.display = 'block'; eraserCursor.style.width = eraserCursor.style.height = (r * 2 * ds) + 'px';
+            eraserCursor.style.left = (e.clientX - r * ds) + 'px'; eraserCursor.style.top = (e.clientY - r * ds) + 'px';
+            eraserCursor.style.borderColor = mode === 'digitizer' ? '#3b82f6' : (mode === 'eraser' ? 'red' : '#facc15');
+            eraserCursor.style.borderRadius = mode === 'manual_add' ? '0%' : '50%';
+        } else { eraserCursor.style.display = 'none'; }
+        
+        if (isDrawing && mode === 'eraser') { points = points.filter(p => Math.hypot(p.x - pos.x, p.y - pos.y) > parseInt(document.getElementById('brushSize').value)); refreshCanvas(); }
+    };
+
+    canvas.onmousedown = (e) => {
+        // 🚀 核心修复：防呆拦截，如果没有图片，严禁触发任何画点事件
+        if (!img.src) return; 
+
+        const pos = getMousePos(e);
+        if (mode === 'calibrate') { handleCalibration(pos); }
+        else if (mode === 'picker') {
+            const px = Math.round(pos.x), py = Math.round(pos.y);
+            const d = ctx.getImageData(px, py, 1, 1).data;
+            targetRGB = { r: d[0], g: d[1], b: d[2] }; targetHSV = rgbToHsv(d[0], d[1], d[2]);
+            hsvSwatch.style.background = `rgb(${d[0]},${d[1]},${d[2]})`;
+            document.getElementById('hsv-h').innerText = Math.round(targetHSV.h * 360) + '°';
+            document.getElementById('hsv-s').innerText = Math.round(targetHSV.s * 100) + '%';
+            document.getElementById('hsv-v').innerText = Math.round(targetHSV.v * 100) + '%';
+            guide.innerText = "✅ 颜色已记录，请点击【启动自动提取】"; mode = 'idle'; 
+        } else if (mode === 'smart') { smartTrack(pos.x, pos.y); }
+        else if (mode === 'digitizer') {
+            const val = calculateRealValue(pos);
+            points.push({ x: pos.x, y: pos.y, isDigitizer: true, time: val.time, rate: val.rate });
+            updateDigitizeList(val); refreshCanvas();
+        } else if (mode === 'manual_add') { points.push({ x: pos.x, y: pos.y, isManual: true }); refreshCanvas(); }
+        else if (mode === 'eraser') { isDrawing = true; }
+    };
+    window.onmouseup = () => isDrawing = false;
+
+    function calculateRealValue(pos) {
+        const maxXVal = parseFloat(document.getElementById('maxXValue').value);
+        const origin = calibration[0], xRef = calibration[1], yRef = calibration[2];
+        let tx = ((pos.x - origin.x) / (xRef.x - origin.x)) * maxXVal;
+        let ty = 1 - ((pos.y - yRef.y) / (origin.y - yRef.y));
+        return { time: tx.toFixed(2), rate: Math.max(0, ty).toFixed(4) };
+    }
+
+    function updateDigitizeList(val) {
+        const list = document.getElementById('digitize-list');
+        if (list.innerText.includes('所见即所得')) list.innerHTML = '';
+        list.innerHTML += `<div class="digitize-item"><span>Time: ${val.time}</span> <span>Surv: ${val.rate}</span></div>`;
+        list.scrollTop = list.scrollHeight;
+    }
+
+    function handleCalibration(pos) {
+        if (calibration.length === 0) { calibration.push(pos); drawMarker(pos.x, pos.y, 'red'); guide.innerText = "🎯 步骤2: 点击 X 轴最大点"; }
+        else if (calibration.length === 1) { calibration.push(pos); drawMarker(pos.x, pos.y, '#0f0'); guide.innerText = "🎯 步骤3: 点击 Y 轴最高点 (1.0)"; }
+        else if (calibration.length === 2) { 
+            calibration.push(pos); drawMarker(pos.x, pos.y, '#0ef'); 
+            guide.innerText = "✅ 标定成功！请在左侧自由切换 A/B 方案。";
+            document.querySelectorAll('.lockable-ui').forEach(el => el.classList.remove('step-locked')); mode = 'idle'; 
+        }
+        refreshCanvas();
+    }
+
+    function drawMarker(x, y, c) { ctx.strokeStyle = c; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.stroke(); }
+    
+    function undoLastPoint() { 
+        if (points.length === 0) return;
+        for (let i = points.length - 1; i >= 0; i--) { if (points[i].isDigitizer) { points.splice(i, 1); break; } }
+        const list = document.getElementById('digitize-list'); 
+        if(list.children.length > 0) list.removeChild(list.lastChild); 
+        refreshCanvas(); 
+    }
+    
+    function clearData() { 
+        points = []; document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">所见即所得：<br>点击图表，坐标将记录于此</div>'; 
+        refreshCanvas(); mode = 'idle'; guide.innerText = "💡 已清除所有提取点，请重新选择工具";
+    }
+
+    function refreshCanvas() {
+        ctx.clearRect(0,0,canvas.width,canvas.height); 
+        if(img.src) ctx.drawImage(img, 0, 0);
+        points.forEach((p) => {
+            if (p.isDigitizer) { ctx.fillStyle = '#3b82f6'; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle='white'; ctx.lineWidth=1.5; ctx.stroke(); }
+            else if (p.isManual) { ctx.fillStyle = '#facc15'; ctx.fillRect(p.x-1.5, p.y-1.5, 3, 3); }
+            else { ctx.fillStyle = 'rgba(239, 68, 68, 0.7)'; ctx.fillRect(p.x, p.y, 1, 1); }
+        });
+        calibration.forEach((p, i) => drawMarker(p.x, p.y, ['red', '#0f0', '#0ef'][i]));
+    }
+
+    function smartTrack(sx, sy) {
+        if (!targetRGB) return alert("❌ 请先使用吸管吸取曲线颜色！");
+        
+        const imageData = ctx.getImageData(0,0,canvas.width,canvas.height), data = imageData.data;
+        const tol = parseInt(document.getElementById('tolerance').value);
+        const jumpSpan = parseInt(document.getElementById('jumpSpan').value);
+        const rgbThreshold = tol * 3.0; 
+        const isNeutral = targetHSV.s < 0.25 || targetHSV.v < 0.2;
+
+        const limit = 600000; 
+        const qx = new Int32Array(limit), qy = new Int32Array(limit), qgap = new Int32Array(limit);
+        let head = 0, tail = 0;
+        
+        const visited = new Uint8Array(canvas.width * canvas.height);
+        const minX = Math.min(calibration[0].x, calibration[1].x), maxX = Math.max(calibration[1].x, calibration[0].x);
+        
+        let startX = Math.round(sx), startY = Math.round(sy);
+        qx[tail] = startX; qy[tail] = startY; qgap[tail] = 0; tail++;
+        visited[startY * canvas.width + startX] = 1;
+
+        const dx = [-1, 0, 1, -1, 1, -1, 0, 1];
+        const dy = [-1, -1, -1, 0, 0, 1, 1, 1];
+
+        while (head < tail && head < limit) {
+            const cx = qx[head], cy = qy[head], gap = qgap[head];
+            head++;
+            
+            const idx = cy * canvas.width + cx;
+            const pIdx = idx * 4;
+            const r = data[pIdx], g = data[pIdx+1], b = data[pIdx+2];
+            let match = false;
+
+            const isBg = (r > 225 && g > 225 && b > 225);
+            
+            if (!isBg) {
+                const hsv = rgbToHsv(r, g, b);
+                if (isNeutral) {
+                    if (hsv && hsv.s < 0.3) {
+                        const dist = Math.sqrt(Math.pow(r-targetRGB.r, 2) + Math.pow(g-targetRGB.g, 2) + Math.pow(b-targetRGB.b, 2));
+                        if (dist <= rgbThreshold) match = true;
+                    }
+                } else {
+                    if (hsv && hsv.s > 0.1) {
+                        let hDiff = Math.abs(hsv.h - targetHSV.h);
+                        if (hDiff > 0.5) hDiff = 1 - hDiff;
+                        if (hDiff <= (tol / 360)) match = true;
+                    }
+                }
+            }
+
+            let nextGap = gap + 1;
+
+            if (match) { points.push({x: cx, y: cy}); nextGap = 0; }
+
+            if (nextGap <= jumpSpan) {
+                for(let i=0; i<8; i++) {
+                    const nx = cx + dx[i], ny = cy + dy[i];
+                    if(nx >= minX && nx <= maxX && ny >= 0 && ny < canvas.height) {
+                        const nIdx = ny * canvas.width + nx;
+                        if (!visited[nIdx]) {
+                            visited[nIdx] = 1;
+                            if (tail < limit) { qx[tail] = nx; qy[tail] = ny; qgap[tail] = nextGap; tail++; }
+                        }
+                    }
+                }
+            }
+        }
+        refreshCanvas();
+    }
+
+    function processData() {
+        clearTextSelection(); 
+        
+        const maxXVal = parseFloat(document.getElementById('maxXValue').value);
+        const targetXStr = document.getElementById('targetX').value;
+        if (!targetXStr) return alert("请输入要提取计算的时间点！");
+        const targets = targetXStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+        if (targets.length === 0) return alert("❌ 无效输入，请输入数字时间点");
+        if (targets.some(t => t > maxXVal)) { alert("❌ 操作被拦截：输入时间超出X轴最大量程！"); return; }
+        
+        let validPoints = points.filter(p => !p.isDigitizer);
+        if (validPoints.length < 2) return alert("❌ 方案A暂无提取数据，请先执行魔棒提取或补点。");
+        
+        const origin = calibration[0], xRef = calibration[1], yRef = calibration[2];
+        let groups = {};
+        validPoints.forEach(p => {
+            let tx = ((p.x - origin.x) / (xRef.x - origin.x)) * maxXVal, ty = 1 - ((p.y - yRef.y) / (origin.y - yRef.y)), key = Math.round(tx * 20) / 20;
+            if (!groups[key]) groups[key] = []; groups[key].push(ty);
+        });
+        let skeleton = Object.keys(groups).map(k => { let ys = groups[k].sort((a,b)=>a-b); return { tx: parseFloat(k), ty: ys[Math.floor(ys.length / 2)] }; }).sort((a,b)=>a.tx-b.tx);
+        let final = [{tx:0, ty:1.0}]; let currY = 1.0;
+        skeleton.forEach(p => { if(p.tx >= 0 && p.ty <= currY + 0.05) { currY = Math.min(currY, p.ty); final.push({tx:p.tx, ty:currY}); } });
+        
+        let rawData = targets.map(tx => { const m = final.filter(p => p.tx <= tx).pop(); return { time: tx, rate: m ? Math.max(0, m.ty).toFixed(4) : "1.0000" }; });
+        rawData.sort((a, b) => parseFloat(a.time) - parseFloat(b.time));
+        
+        lastProcessedData = calculateHazardRates(rawData);
+        
+        let html = '<table><tr><th>Time (M)</th><th>Surv Rate</th><th>Interval</th><th>Hazard Rate</th></tr>';
+        lastProcessedData.forEach(row => { html += `<tr><td>${row.time}</td><td>${row.rate}</td><td>${row.interval}</td><td><strong style="color:var(--warning)">${row.hr}</strong></td></tr>`; });
+        document.getElementById('table-output').innerHTML = html + "</table>";
+    }
+
+    function exportToCSV_A() {
+        clearTextSelection(); 
+        
+        if (!lastProcessedData || lastProcessedData.length === 0) return alert("请先生成预览表格！");
+        let csv = "Time(Months),Survival_Rate,Interval,Hazard_Rate(Rounded),Hazard_Rate(Raw)\n" + 
+                  lastProcessedData.map(r => `${r.time},${r.rate},${r.interval},${r.hr},${r.hrRaw}`).join("\n");
+        const link = document.createElement("a"); link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + csv));
+        link.setAttribute("download", `KM_SmartWand_${getFileNameDate()}.csv`); link.click();
+    }
+
+    function processData_B() {
+        clearTextSelection(); 
+        
+        let digitizerPoints = points.filter(p => p.isDigitizer);
+        if (digitizerPoints.length === 0) return alert("❌ 暂无取点数据！");
+
+        digitizerPoints.sort((a, b) => parseFloat(a.time) - parseFloat(b.time));
+        let rawData = digitizerPoints.map(p => ({ time: p.time, rate: p.rate }));
+        
+        lastProcessedData_B = calculateHazardRates(rawData);
+
+        let html = '<table><tr><th>Time (M)</th><th>Surv Rate</th><th>Interval</th><th>Hazard Rate</th></tr>';
+        lastProcessedData_B.forEach(row => { html += `<tr><td>${row.time}</td><td>${row.rate}</td><td>${row.interval}</td><td><strong style="color:var(--warning)">${row.hr}</strong></td></tr>`; });
+        document.getElementById('table-output-b').innerHTML = html + "</table>";
+    }
+
+    function exportToCSV_B() {
+        clearTextSelection(); 
+        
+        if (!lastProcessedData_B || lastProcessedData_B.length === 0) return alert("❌ 请先生成数据表格！");
+        let csv = "Time(Months),Survival_Rate,Interval,Hazard_Rate(Rounded),Hazard_Rate(Raw)\n" + 
+                  lastProcessedData_B.map(r => `${r.time},${r.rate},${r.interval},${r.hr},${r.hrRaw}`).join("\n");
+        const link = document.createElement("a"); link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + csv));
+        link.setAttribute("download", `KM_Digitizer_${getFileNameDate()}.csv`); link.click();
+    }
+
+    function rgbToHsv(r, g, b) { r/=255, g/=255, b/=255; let max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min, h=0; if(d!==0){ if(max===r) h=(g-b)/d+(g<b?6:0); else if(max===g) h=(b-r)/d+2; else h=(r-g)/d+4; h/=6; } return {h, s:max?d/max:0, v:max}; }
+</script>
+</body>
+</html>
