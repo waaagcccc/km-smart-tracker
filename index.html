@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>KM SMART PRO V4.1 - 交互逻辑完善版</title>
+    <title>KM SMART PRO V4.1 - 交互完善版</title>
     <style>
         :root { --primary: #8b5cf6; --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --digitize: #3b82f6; }
         body { font-family: 'Inter', system-ui, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
@@ -12,8 +12,8 @@
         
         #nav-guide { width: 90%; padding: 12px; background: rgba(139, 92, 246, 0.15); border: 2px solid var(--primary); border-radius: 8px; text-align: center; margin-bottom: 10px; font-weight: bold; color: #a78bfa; z-index: 10; }
         #canvas-wrapper { position: relative; border: 2px dashed #475569; background: #fff; line-height: 0; cursor: crosshair; min-width: 300px; min-height: 200px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-        #canvas-wrapper:hover:not(.has-img) { background: #f8fafc; border-color: var(--primary); }
         #canvas-wrapper.has-img { border: 2px solid #475569; }
+        #canvas-wrapper:hover:not(.has-img) { background: #f8fafc; border-color: var(--primary); }
         canvas { display: block; }
         #paste-hint { position: absolute; color: #94a3b8; font-size: 0.95rem; pointer-events: none; text-align: center; line-height: 1.6; }
 
@@ -69,7 +69,10 @@
 <body>
 
 <div class="sidebar">
-    <div style="font-weight: 900; font-size: 1.1rem; color: var(--primary); text-align: center; margin-bottom:5px;">KM SMART PRO V4.1</div>
+    <div style="text-align: center; margin-bottom: 12px; padding: 0 5px;">
+        <img src="logo.jpg" alt="KM Smart Pro V4.1 Logo" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--primary);">
+    </div>
+    
     <button class="reset-all-btn" onclick="masterReset()">🔄 一键全网页初始化</button>
 
     <div class="card" id="card-1">
@@ -286,7 +289,6 @@
         tempImg.src = source;
     }
 
-    // 🚀 核心修复：点击中间画布区域也可以触发上传图片
     wrapper.addEventListener('click', () => {
         if (!img.src) fileInput.click();
     });
@@ -326,7 +328,6 @@
     };
 
     canvas.onmousedown = (e) => {
-        // 🚀 核心修复：防呆拦截，如果没有图片，严禁触发任何画点事件
         if (!img.src) return; 
 
         const pos = getMousePos(e);
