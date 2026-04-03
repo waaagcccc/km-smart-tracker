@@ -2,29 +2,27 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>KM Smart-Tracker V4.2 - Corner Logo Edition</title>
+    <title>KM Smart-Tracker V1.0 </title>
     <style>
         :root { --primary: #8b5cf6; --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --digitize: #3b82f6; }
         body { font-family: 'Inter', system-ui, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
         
         .sidebar { width: 380px; padding: 20px; background: var(--card); border-right: 1px solid #334155; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; box-shadow: 4px 0 15px rgba(0,0,0,0.3); }
         
-        /* 🚀 修改：主操作区改为相对定位，方便 Logo 绝对定位 */
         .main-content { flex: 1; position: relative; overflow: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; padding: 20px; }
         
-        /* 🚀 核心新增：右上角悬浮 Logo 样式 */
         .corner-logo-container {
             position: absolute;
             top: 20px;
             right: 20px;
-            max-width: 160px; /* 保持原本较小的尺寸 */
+            max-width: 160px; 
             height: auto;
-            z-index: 5; /* 层级：在背景图之上，但在标定点之下 */
-            pointer-events: none; /* 防止 Logo 遮挡鼠标操作 */
+            z-index: 5; 
+            pointer-events: none; 
             border-radius: 6px;
             border: 1px solid rgba(139, 92, 246, 0.2);
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            background: rgba(15, 23, 42, 0.6); /* 增加一点半透明背景，适配不同深浅背景图 */
+            background: rgba(15, 23, 42, 0.6); 
             padding: 3px;
         }
         .corner-logo-container img { max-width: 100%; height: auto; border-radius: 4px; display: block; }
@@ -81,12 +79,23 @@
         table { width: 100%; font-size: 0.65rem; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #334155; padding: 5px; text-align: center; }
         #eraser-cursor { position: fixed; border: 2px solid white; border-radius: 50%; pointer-events: none; display: none; z-index: 9999; mix-blend-mode: difference; }
+
+        /* 🚀 新增：底部内测说明文字样式 */
+        .footer-note {
+            margin-top: auto; 
+            text-align: center; 
+            font-size: 0.7rem; 
+            color: #475569; 
+            padding-top: 20px;
+            padding-bottom: 5px;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
 
 <div class="sidebar">
-    <div style="font-weight: 900; font-size: 1.0rem; color: var(--primary); text-align: center; margin-bottom:5px; text-transform: uppercase; letter-spacing: 1px;">KM Smart-Tracker V4.2</div>
+    <div style="font-weight: 900; font-size: 1.0rem; color: var(--primary); text-align: center; margin-bottom:5px; text-transform: uppercase; letter-spacing: 1px;">KM Smart-Tracker V1.0</div>
     
     <button class="reset-all-btn" onclick="masterReset()">🔄 一键全网页初始化</button>
 
@@ -172,11 +181,15 @@
         </div>
     </div>
 
+    <div class="footer-note">
+        使用相关问题可以企微联系生物计量部王策
+    </div>
+
 </div>
 
 <div class="main-content">
     <div class="corner-logo-container">
-        <img src="logo.jpg" alt="KM Smart Pro V4.2 Logo" onerror="this.parentElement.style.display='none'; console.error('Logo file not found. Ensure logo.jpg is in the same directory.')">
+        <img src="logo.jpg" alt="KM Smart Pro V1.0 Logo" onerror="this.parentElement.style.display='none'; console.error('Logo file not found. Ensure logo.jpg is in the same directory.')">
     </div>
 
     <div id="nav-guide">💡 请上传图片或 Ctrl+V 粘贴截图</div>
@@ -193,7 +206,6 @@
 <div id="eraser-cursor"></div>
 
 <script>
-    // 基础核心逻辑保持不变 (V4.1)
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const zoomContainer = document.getElementById('zoom-container');
@@ -222,11 +234,10 @@
         return `${yyyy}${mm}${dd}`;
     }
 
-    // 严谨的分段指数模型迭代 HR 计算引擎 (完全符合 Protocol 截图逻辑)
     function calculateHazardRates(dataArray) {
         let enrichedData = [];
         let prevT = 0;
-        let cumulativeHazard = 0; // 累计风险 ∑(λ_i * dt_i)
+        let cumulativeHazard = 0; 
 
         dataArray.forEach(row => {
             let t = parseFloat(row.time);
@@ -238,16 +249,11 @@
             let interval = `${prevT}~${t}`;
 
             if (dt > 0) {
-                // 公式：λ_n = (-ln(S(t_n)) - Σ(λ_i * dt_i)) / dt_n
                 let current_Total_H = -Math.log(safeS);
                 let hrValue = (current_Total_H - cumulativeHazard) / dt;
-                
-                if (hrValue < 0) hrValue = 0; // 容错：KM误差导致极其微小的负HR归零
-
-                hr = hrValue.toFixed(4); // UI 展示
-                hrRaw = hrValue; // CSV 导出高精度 Raw 数据
-
-                // 更新累计风险：Σ(λ_i * dt_i)
+                if (hrValue < 0) hrValue = 0;
+                hr = hrValue.toFixed(4); 
+                hrRaw = hrValue; 
                 cumulativeHazard += hrValue * dt;
             }
 
@@ -423,7 +429,6 @@
         calibration.forEach((p, i) => drawMarker(p.x, p.y, ['red', '#0f0', '#0ef'][i]));
     }
 
-    // BFS 魔棒智能算法核心逻辑 (V4.1 断点越障版)
     function smartTrack(sx, sy) {
         if (!targetRGB) return alert("❌ 请先吸取颜色！");
         
@@ -436,6 +441,7 @@
         const limit = 600000; 
         const qx = new Int32Array(limit), qy = new Int32Array(limit), qgap = new Int32Array(limit);
         let head = 0, tail = 0;
+        
         const visited = new Uint8Array(canvas.width * canvas.height);
         const minX = Math.min(calibration[0].x, calibration[1].x), maxX = Math.max(calibration[1].x, calibration[0].x);
         
@@ -489,18 +495,17 @@
         refreshCanvas();
     }
 
-    // 数据处理与导出逻辑保持不变 (V4.1)
     function processData() {
         clearTextSelection(); 
         const maxXVal = parseFloat(document.getElementById('maxXValue').value);
         const targetXStr = document.getElementById('targetX').value;
-        if (!targetXStr) return alert("请输入提取点！");
+        if (!targetXStr) return alert("请输入要提取的时间点！");
         const targets = targetXStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
         if (targets.length === 0) return alert("❌ 无效输入");
         if (targets.some(t => t > maxXVal)) { alert("❌ 超出X轴量程！"); return; }
         
         let validPoints = points.filter(p => !p.isDigitizer);
-        if (validPoints.length < 2) return alert("❌ A暂无数据，请提取或补点。");
+        if (validPoints.length < 2) return alert("❌ 方案A暂无数据，请提取或补点。");
         
         const origin = calibration[0], xRef = calibration[1], yRef = calibration[2];
         let groups = {};
@@ -523,7 +528,7 @@
 
     function exportToCSV_A() {
         clearTextSelection(); 
-        if (!lastProcessedData || lastProcessedData.length === 0) return alert("请先生成表格！");
+        if (!lastProcessedData || lastProcessedData.length === 0) return alert("请先生成预览表格！");
         let csv = "Time(Months),Survival_Rate,Interval,Hazard_Rate(Rounded),Hazard_Rate(Raw)\n" + 
                   lastProcessedData.map(r => `${r.time},${r.rate},${r.interval},${r.hr},${r.hrRaw}`).join("\n");
         const link = document.createElement("a"); link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + csv));
@@ -533,7 +538,7 @@
     function processData_B() {
         clearTextSelection(); 
         let digitizerPoints = points.filter(p => p.isDigitizer);
-        if (digitizerPoints.length === 0) return alert("❌ 暂无数据！");
+        if (digitizerPoints.length === 0) return alert("❌ 暂无取点数据！");
         digitizerPoints.sort((a, b) => parseFloat(a.time) - parseFloat(b.time));
         let rawData = digitizerPoints.map(p => ({ time: p.time, rate: p.rate }));
         lastProcessedData_B = calculateHazardRates(rawData);
@@ -544,7 +549,7 @@
 
     function exportToCSV_B() {
         clearTextSelection(); 
-        if (!lastProcessedData_B || lastProcessedData_B.length === 0) return alert("❌ 请先生成表格！");
+        if (!lastProcessedData_B || lastProcessedData_B.length === 0) return alert("❌ 请先生成数据表格！");
         let csv = "Time(Months),Survival_Rate,Interval,Hazard_Rate(Rounded),Hazard_Rate(Raw)\n" + 
                   lastProcessedData_B.map(r => `${r.time},${r.rate},${r.interval},${r.hr},${r.hrRaw}`).join("\n");
         const link = document.createElement("a"); link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + csv));
