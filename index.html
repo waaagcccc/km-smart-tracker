@@ -2,13 +2,12 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>KM Smart-Tracker V1.0 </title>
+    <title>KM Smart-Tracker V1.0</title>
     <style>
         :root { --primary: #8b5cf6; --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --digitize: #3b82f6; }
         body { font-family: 'Inter', system-ui, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
         
         .sidebar { width: 380px; padding: 20px; background: var(--card); border-right: 1px solid #334155; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; box-shadow: 4px 0 15px rgba(0,0,0,0.3); }
-        
         .main-content { flex: 1; position: relative; overflow: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; padding: 20px; }
         
         .corner-logo-container {
@@ -46,9 +45,10 @@
         .tabs { display: flex; gap: 4px; margin-bottom: 5px; }
         .tab-btn { flex: 1; padding: 10px 5px; background: #334155; border: none; color: #94a3b8; cursor: pointer; border-radius: 6px; font-size: 0.7rem; font-weight: bold; transition: 0.2s; white-space: nowrap; }
         .tab-btn.active { background: var(--primary); color: white; }
+        
         .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-content.active { display: block; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
         h2 { font-size: 0.85rem; margin: 0 0 10px 0; color: #a78bfa; text-transform: uppercase; }
         button { width: 100%; padding: 10px; margin: 3px 0; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.85rem; color: white; }
@@ -80,16 +80,7 @@
         th, td { border: 1px solid #334155; padding: 5px; text-align: center; }
         #eraser-cursor { position: fixed; border: 2px solid white; border-radius: 50%; pointer-events: none; display: none; z-index: 9999; mix-blend-mode: difference; }
 
-        /* 🚀 新增：底部内测说明文字样式 */
-        .footer-note {
-            margin-top: auto; 
-            text-align: center; 
-            font-size: 0.7rem; 
-            color: #475569; 
-            padding-top: 20px;
-            padding-bottom: 5px;
-            letter-spacing: 0.5px;
-        }
+        .footer-note { margin-top: auto; text-align: center; font-size: 0.7rem; color: #475569; padding-top: 20px; padding-bottom: 5px; letter-spacing: 0.5px; }
     </style>
 </head>
 <body>
@@ -108,15 +99,17 @@
         <button class="btn-g" style="margin-top:8px; font-size:0.75rem;" onclick="resetCalibration()">📍 重新标定坐标系</button>
     </div>
 
-    <div class="tabs step-locked lockable-ui" id="tab-nav">
-        <button class="tab-btn active" onclick="switchTab(this, 'mode-a-ui')">方案A: 魔棒识别</button>
+    <div class="tabs step-locked" id="tab-nav">
+        <button class="tab-btn" onclick="switchTab(this, 'mode-a-ui')">方案A: 自动识别</button>
         <button class="tab-btn" onclick="switchTab(this, 'mode-b-ui')">方案B: 手动取点</button>
+        <button class="tab-btn" onclick="alert('方案C（图像直接分析）正在加紧研发中，敬请期待！')">方案C: AI分析</button>
     </div>
 
-    <div id="mode-a-ui" class="tab-content active lockable-ui step-locked">
+    <div id="mode-a-ui" class="tab-content step-locked">
         <div class="card">
-            <h2>方案A: 魔棒自动提取</h2>
-            <button class="btn-g" onclick="setMode('picker')">🖊️ 吸取曲线颜色</button>
+            <h2>方案A: 自动识别</h2>
+            <button class="btn-g" onclick="setMode('picker')">🖊️ 步骤1：吸取目标颜色 (可反复点)</button>
+            
             <div id="color-monitor">
                 <div id="active-color-swatch" style="background: transparent;"></div>
                 <div style="flex:1; font-family: monospace; font-size: 0.7rem;">H:<span id="hsv-h">--</span> S:<span id="hsv-s">--</span> V:<span id="hsv-v">--</span></div>
@@ -129,13 +122,14 @@
             <input type="range" id="tolerance" min="5" max="100" value="35" oninput="document.getElementById('tol-val').innerText = this.value">
 
             <div class="label-group" style="margin-top:5px;">
-                <span style="color:#facc15;">断点跨度 <span class="info-tip" data-tip="【虚线/断裂线】可拉高至 15~30，魔棒会自动跳过空白区寻点。">i</span></span>
+                <span>断点跨度 <span class="info-tip" data-tip="【虚线/断裂线】可拉高至 15~30，程序会自动跳过空白区寻点。">i</span></span>
                 <span id="jump-val" style="color:var(--warning); font-weight:bold; font-family:monospace; font-size:0.9rem;">3</span>
             </div>
             <input type="range" id="jumpSpan" min="1" max="40" value="3" oninput="document.getElementById('jump-val').innerText = this.value">
             
-            <button class="btn-p" style="margin-top:10px;" onclick="setMode('smart')">🛰️ 启动自动提取</button>
-            <button class="btn-g" style="font-size:0.75rem; margin-top:5px;" onclick="clearData()">🧹 清除当前提取线条</button>
+            <button class="btn-p" style="margin-top:10px; font-size:0.9rem; padding:12px;" onclick="setMode('smart')">🪄 步骤2：锁定颜色并去图上点击提取</button>
+            
+            <button class="btn-g" style="background:#334155; font-size:0.75rem; margin-top:5px;" onclick="clearData()">🧹 清除当前提取线条</button>
         </div>
 
         <div class="card">
@@ -160,7 +154,7 @@
         </div>
     </div>
 
-    <div id="mode-b-ui" class="tab-content lockable-ui step-locked">
+    <div id="mode-b-ui" class="tab-content step-locked">
         <div class="card">
             <h2>方案B: 数字化手动取点</h2>
             <button class="btn-digitize" onclick="setMode('digitizer')">🖱️ 开启十字准星取点</button>
@@ -173,7 +167,6 @@
 
         <div class="card">
             <h2>计算与导出</h2>
-            <p style="font-size:0.7rem; color:#94a3b8; margin: 0 0 10px 0;"></p>
             <button class="btn-p" style="background:#059669; margin-top:5px;" onclick="processData_B()">📊 生成数据表格</button>
             <button class="btn-digitize" style="background:#0d9488; font-size:0.75rem; margin-top:5px;" onclick="exportToCSV_B()">💾 导出 CSV 文件</button>
             <div id="table-output-b"></div>
@@ -188,7 +181,7 @@
 
 <div class="main-content">
     <div class="corner-logo-container">
-        <img src="logo.jpg" alt="KM Smart Pro V1.0 Logo" onerror="this.parentElement.style.display='none'; console.error('Logo file not found. Ensure logo.jpg is in the same directory.')">
+        <img src="logo.jpg" alt="KM Smart-Tracker V1.0 Logo" onerror="this.parentElement.style.display='none'; console.error('Logo file not found.')">
     </div>
 
     <div id="nav-guide">💡 请上传图片或 Ctrl+V 粘贴截图</div>
@@ -265,25 +258,70 @@
     function resetCalibration() {
         if (!img.src) return alert("请先载入图片！");
         calibration = []; mode = 'calibrate';
-        document.querySelectorAll('.lockable-ui').forEach(el => el.classList.add('step-locked'));
+        
+        document.getElementById('tab-nav').classList.add('step-locked');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => {
+            c.classList.remove('active');
+            c.classList.add('step-locked');
+        });
+        
         refreshCanvas(); guide.innerText = "🎯 重新标定: 请点击 原点 (0, 0)";
     }
 
     function switchTab(btn, targetId) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active'); document.getElementById(targetId).classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(c => {
+            c.classList.remove('active');
+            c.classList.add('step-locked');
+        });
+        
+        btn.classList.add('active'); 
+        const target = document.getElementById(targetId);
+        target.classList.add('active');
+        target.classList.remove('step-locked'); 
+        
         points = []; lastProcessedData = []; lastProcessedData_B = [];
+        targetRGB = null; targetHSV = null;
+        hsvSwatch.style.background = 'transparent';
+        document.getElementById('hsv-h').innerText = '--';
+        document.getElementById('hsv-s').innerText = '--';
+        document.getElementById('hsv-v').innerText = '--';
+        
         document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">点击图表，坐标将记录于此</div>';
         document.getElementById('table-output').innerHTML = ""; 
         document.getElementById('table-output-b').innerHTML = ""; 
         refreshCanvas();
-        mode = 'idle'; guide.innerText = "💡 已切换方案，请从步骤 1 标定图片开始";
+        mode = 'idle'; 
+        
+        if(targetId === 'mode-a-ui') {
+             guide.innerText = "💡 已切换至方案A，请点击【步骤1：吸取目标颜色】";
+        } else {
+             guide.innerText = "💡 已切换至方案B，请点击【开启十字准星取点】";
+        }
     }
 
     function setMode(m) {
         if (m !== 'calibrate' && calibration.length < 3) { alert("❌ 操作被拦截！\n请先在图上依次点击完成3点标定。"); return; }
-        mode = m; guide.innerText = "工具：" + m;
+        mode = m; 
+        
+        if (m === 'picker') {
+            guide.innerText = "✅ 已激活【吸取目标颜色】，请直接在图表上点击 (可反复确认)";
+        } else if (m === 'smart') {
+            if (!targetRGB) {
+                mode = 'idle';
+                return alert("❌ 请先执行步骤1：吸取颜色！");
+            }
+            guide.innerText = "✅ 已激活【智能提取】，颜色已锁定，请点击图上对应的曲线";
+        } else if (m === 'digitizer') {
+            guide.innerText = "✅ 已激活【十字准星取点】，请直接在图表上点击";
+        } else if (m === 'manual_add') {
+            guide.innerText = "✅ 已激活【补大黄点】，请在曲线上点击修补断点";
+        } else if (m === 'eraser') {
+            guide.innerText = "✅ 已激活【圆形橡皮】，请在图上按住鼠标擦除多余噪点";
+        } else {
+            guide.innerText = "工具：" + m;
+        }
     }
 
     function masterReset() {
@@ -291,13 +329,20 @@
         canvas.width = 300; canvas.height = 200;
         wrapper.classList.remove('has-img'); pasteHint.style.display = 'block';
         calibration = []; points = []; targetHSV = null; targetRGB = null; mode = 'calibrate'; lastProcessedData = []; lastProcessedData_B = [];
-        document.querySelectorAll('.step-locked').forEach(c => c.classList.add('step-locked'));
+        
+        document.getElementById('tab-nav').classList.add('step-locked');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => {
+            c.classList.remove('active');
+            c.classList.add('step-locked');
+        });
+        
         document.getElementById('table-output').innerHTML = "";
         document.getElementById('table-output-b').innerHTML = "";
         document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">点击图表，坐标将记录于此</div>';
         hsvSwatch.style.background = "transparent"; fileInput.value = ""; 
         document.getElementById('hsv-h').innerText = "--"; document.getElementById('hsv-s').innerText = "--"; document.getElementById('hsv-v').innerText = "--";
-        guide.innerText = "💡 已重置。请导入图片。"; zoomContainer.style.display = 'none';
+        guide.innerText = "💡 已全网页初始化。请导入新图片。"; zoomContainer.style.display = 'none';
     }
 
     function initImage(source) {
@@ -306,7 +351,14 @@
             img = tempImg; canvas.width = img.width; canvas.height = img.height;
             wrapper.classList.add('has-img'); pasteHint.style.display = 'none';
             calibration = []; points = []; targetHSV = null; targetRGB = null; mode = 'calibrate'; lastProcessedData = []; lastProcessedData_B = [];
-            document.querySelectorAll('.lockable-ui').forEach(el => el.classList.add('step-locked'));
+            
+            document.getElementById('tab-nav').classList.add('step-locked');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => {
+                c.classList.remove('active');
+                c.classList.add('step-locked');
+            });
+            
             document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">点击图表，坐标将记录于此</div>';
             document.getElementById('table-output').innerHTML = ""; document.getElementById('table-output-b').innerHTML = "";
             refreshCanvas(); guide.innerText = "🎯 步骤1: 请点击图中的 原点 (0, 0)";
@@ -365,8 +417,12 @@
             document.getElementById('hsv-h').innerText = Math.round(targetHSV.h * 360) + '°';
             document.getElementById('hsv-s').innerText = Math.round(targetHSV.s * 100) + '%';
             document.getElementById('hsv-v').innerText = Math.round(targetHSV.v * 100) + '%';
-            guide.innerText = "✅ 颜色已记录，点击【启动自动提取】"; mode = 'idle'; 
-        } else if (mode === 'smart') { smartTrack(pos.x, pos.y); }
+            guide.innerText = "✅ 颜色已记录！如果准确，请点击左侧【步骤2】按钮"; 
+        } 
+        else if (mode === 'smart') { 
+            smartTrack(pos.x, pos.y);
+            guide.innerText = "✅ 提取完成！可继续点击其他断点处补充，或进行修补";
+        }
         else if (mode === 'digitizer') {
             const val = calculateRealValue(pos);
             points.push({ x: pos.x, y: pos.y, isDigitizer: true, time: val.time, rate: val.rate });
@@ -396,8 +452,9 @@
         else if (calibration.length === 1) { calibration.push(pos); drawMarker(pos.x, pos.y, '#0f0'); guide.innerText = "🎯 步骤3: 点击 Y 轴最高点 (1.0)"; }
         else if (calibration.length === 2) { 
             calibration.push(pos); drawMarker(pos.x, pos.y, '#0ef'); 
-            guide.innerText = "✅ 标定成功！请自由切换 A/B 方案进行操作。";
-            document.querySelectorAll('.lockable-ui').forEach(el => el.classList.remove('step-locked')); mode = 'idle'; 
+            guide.innerText = "✅ 标定成功！👉 请在左侧点击选择【方案A】或【方案B】解锁功能";
+            document.getElementById('tab-nav').classList.remove('step-locked'); 
+            mode = 'idle'; 
         }
         refreshCanvas();
     }
@@ -413,8 +470,24 @@
     }
     
     function clearData() { 
-        points = []; document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">点击图表，坐标将记录于此</div>'; 
-        refreshCanvas(); mode = 'idle'; guide.innerText = "💡 已清除数据，请重新选择工具";
+        points = []; 
+        document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">点击图表，坐标将记录于此</div>'; 
+        
+        targetRGB = null; 
+        targetHSV = null;
+        hsvSwatch.style.background = 'transparent';
+        document.getElementById('hsv-h').innerText = '--';
+        document.getElementById('hsv-s').innerText = '--';
+        document.getElementById('hsv-v').innerText = '--';
+
+        refreshCanvas(); 
+        mode = 'idle'; 
+
+        if (document.getElementById('mode-a-ui').classList.contains('active')) {
+            guide.innerText = "💡 已清除数据，请重新点击【步骤1：吸取目标颜色】";
+        } else {
+            guide.innerText = "💡 已清除数据，请重新点击【开启十字准星取点】";
+        }
     }
 
     function refreshCanvas() {
@@ -531,7 +604,7 @@
         let csv = "Time(Months),Survival_Rate,Interval,Hazard_Rate(Rounded),Hazard_Rate(Raw)\n" + 
                   lastProcessedData.map(r => `${r.time},${r.rate},${r.interval},${r.hr},${r.hrRaw}`).join("\n");
         const link = document.createElement("a"); link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + csv));
-        link.setAttribute("download", `KM_SmartWand_${getFileNameDate()}.csv`); link.click();
+        link.setAttribute("download", `KM_SmartTracker_${getFileNameDate()}.csv`); link.click();
     }
 
     function processData_B() {
@@ -552,7 +625,7 @@
         let csv = "Time(Months),Survival_Rate,Interval,Hazard_Rate(Rounded),Hazard_Rate(Raw)\n" + 
                   lastProcessedData_B.map(r => `${r.time},${r.rate},${r.interval},${r.hr},${r.hrRaw}`).join("\n");
         const link = document.createElement("a"); link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + csv));
-        link.setAttribute("download", `KM_Digitizer_${getFileNameDate()}.csv`); link.click();
+        link.setAttribute("download", `KM_SmartTracker_${getFileNameDate()}.csv`); link.click();
     }
 
     function rgbToHsv(r, g, b) { r/=255, g/=255, b/=255; let max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min, h=0; if(d!==0){ if(max===r) h=(g-b)/d+(g<b?6:0); else if(max===g) h=(b-r)/d+2; else h=(r-g)/d+4; h/=6; } return {h, s:max?d/max:0, v:max}; }
