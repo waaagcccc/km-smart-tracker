@@ -59,7 +59,7 @@
         .btn-digitize { background: var(--digitize); }
         .reset-all-btn { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; margin-bottom: 5px; }
 
-        input[type="text"], input[type="number"] { width: 100%; padding: 10px; margin-top: 5px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white; box-sizing: border-box; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px; margin-top: 5px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white; box-sizing: border-box; font-family: inherit; }
 
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin: 8px 0; }
         input[type=range]:focus { outline: none; }
@@ -93,8 +93,16 @@
     <div class="card" id="card-1">
         <h2>1. 图片导入与标定</h2>
         <input type="file" id="upload" accept="image/*" onclick="this.value=null">
-        <div style="font-size:0.75rem; color:#94a3b8; margin-top:10px;">X轴最大月数 (请直接输入): 
-            <input type="number" id="maxXValue" value="36" autocomplete="off" spellcheck="false" style="padding:5px; background:#0f172a; color:white; border:1px solid #475569; width:60px;">
+        
+        <div style="font-size:0.75rem; color:#94a3b8; margin-top:10px;">X轴最大数值与单位: 
+            <div style="display: flex; gap: 5px; margin-top: 5px;">
+                <input type="number" id="maxXValue" value="36" autocomplete="off" spellcheck="false" style="flex: 1; margin-top: 0;">
+                <select id="xUnit" style="flex: 1; margin-top: 0; cursor: pointer;">
+                    <option value="M">月 (Months)</option>
+                    <option value="Y">年 (Years)</option>
+                    <option value="D">天 (Days)</option>
+                </select>
+            </div>
         </div>
         <button class="btn-g" style="margin-top:8px; font-size:0.75rem;" onclick="resetCalibration()">📍 重新标定坐标系</button>
     </div>
@@ -593,7 +601,8 @@
         rawData.sort((a, b) => parseFloat(a.time) - parseFloat(b.time));
         lastProcessedData = calculateHazardRates(rawData);
         
-        let html = '<table><tr><th>Time (M)</th><th>Surv Rate</th><th>Interval</th><th>Hazard Rate</th></tr>';
+        const unit = document.getElementById('xUnit').value;
+        let html = `<table><tr><th>Time (${unit})</th><th>Surv Rate</th><th>Interval</th><th>Hazard Rate</th></tr>`;
         lastProcessedData.forEach(row => { html += `<tr><td>${row.time}</td><td>${row.rate}</td><td>${row.interval}</td><td><strong style="color:var(--warning)">${row.hr}</strong></td></tr>`; });
         document.getElementById('table-output').innerHTML = html + "</table>";
     }
@@ -601,7 +610,11 @@
     function exportToCSV_A() {
         clearTextSelection(); 
         if (!lastProcessedData || lastProcessedData.length === 0) return alert("请先生成预览表格！");
-        let csv = "Time(Months),Survival_Rate,Interval,Hazard_Rate(Rounded),Hazard_Rate(Raw)\n" + 
+        
+        const unit = document.getElementById('xUnit').value;
+        const fullUnit = unit === 'M' ? 'Months' : (unit === 'Y' ? 'Years' : 'Days');
+        
+        let csv = `Time(${fullUnit}),Survival_Rate,Interval,Hazard_Rate(Rounded),Hazard_Rate(Raw)\n` + 
                   lastProcessedData.map(r => `${r.time},${r.rate},${r.interval},${r.hr},${r.hrRaw}`).join("\n");
         const link = document.createElement("a"); link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + csv));
         link.setAttribute("download", `KM_SmartTracker_${getFileNameDate()}.csv`); link.click();
@@ -614,7 +627,9 @@
         digitizerPoints.sort((a, b) => parseFloat(a.time) - parseFloat(b.time));
         let rawData = digitizerPoints.map(p => ({ time: p.time, rate: p.rate }));
         lastProcessedData_B = calculateHazardRates(rawData);
-        let html = '<table><tr><th>Time (M)</th><th>Surv Rate</th><th>Interval</th><th>Hazard Rate</th></tr>';
+        
+        const unit = document.getElementById('xUnit').value;
+        let html = `<table><tr><th>Time (${unit})</th><th>Surv Rate</th><th>Interval</th><th>Hazard Rate</th></tr>`;
         lastProcessedData_B.forEach(row => { html += `<tr><td>${row.time}</td><td>${row.rate}</td><td>${row.interval}</td><td><strong style="color:var(--warning)">${row.hr}</strong></td></tr>`; });
         document.getElementById('table-output-b').innerHTML = html + "</table>";
     }
@@ -622,10 +637,14 @@
     function exportToCSV_B() {
         clearTextSelection(); 
         if (!lastProcessedData_B || lastProcessedData_B.length === 0) return alert("❌ 请先生成数据表格！");
-        let csv = "Time(Months),Survival_Rate,Interval,Hazard_Rate(Rounded),Hazard_Rate(Raw)\n" + 
+        
+        const unit = document.getElementById('xUnit').value;
+        const fullUnit = unit === 'M' ? 'Months' : (unit === 'Y' ? 'Years' : 'Days');
+        
+        let csv = `Time(${fullUnit}),Survival_Rate,Interval,Hazard_Rate(Rounded),Hazard_Rate(Raw)\n` + 
                   lastProcessedData_B.map(r => `${r.time},${r.rate},${r.interval},${r.hr},${r.hrRaw}`).join("\n");
         const link = document.createElement("a"); link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + csv));
-        link.setAttribute("download", `KM_SmartTracker_${getFileNameDate()}.csv`); link.click();
+        link.setAttribute("download", `KM_Digitizer_${getFileNameDate()}.csv`); link.click();
     }
 
     function rgbToHsv(r, g, b) { r/=255, g/=255, b/=255; let max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min, h=0; if(d!==0){ if(max===r) h=(g-b)/d+(g<b?6:0); else if(max===g) h=(b-r)/d+2; else h=(r-g)/d+4; h/=6; } return {h, s:max?d/max:0, v:max}; }
