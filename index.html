@@ -7,7 +7,7 @@
         :root { --primary: #8b5cf6; --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b; --digitize: #3b82f6; }
         body { font-family: 'Inter', system-ui, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
         
-        .sidebar { width: 380px; padding: 20px; background: var(--card); border-right: 1px solid #334155; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; box-shadow: 4px 0 15px rgba(0,0,0,0.3); }
+        .sidebar { width: 380px; padding: 20px; background: var(--card); border-right: 1px solid #334155; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; box-shadow: 4px 0 15px rgba(0,0,0,0.3); z-index: 10; }
         .main-content { flex: 1; position: relative; overflow: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; padding: 20px; }
         
         .corner-logo-container {
@@ -16,7 +16,7 @@
             right: 20px;
             max-width: 160px; 
             height: auto;
-            z-index: 5; 
+            z-index: 99; 
             pointer-events: none; 
             border-radius: 6px;
             border: 1px solid rgba(139, 92, 246, 0.2);
@@ -26,7 +26,7 @@
         }
         .corner-logo-container img { max-width: 100%; height: auto; border-radius: 4px; display: block; }
 
-        #nav-guide { width: 90%; padding: 12px; background: rgba(139, 92, 246, 0.15); border: 2px solid var(--primary); border-radius: 8px; text-align: center; margin-bottom: 10px; font-weight: bold; color: #a78bfa; z-index: 10; }
+        #nav-guide { width: 90%; padding: 12px; background: rgba(139, 92, 246, 0.15); border: 2px solid var(--primary); border-radius: 8px; text-align: center; margin-bottom: 10px; font-weight: bold; color: #a78bfa; z-index: 10; transition: 0.3s; }
         
         #canvas-wrapper { position: relative; border: 2px dashed #475569; background: #fff; line-height: 0; cursor: pointer; min-width: 300px; min-height: 200px; display: flex; align-items: center; justify-content: center; transition: 0.2s; z-index: 1; }
         #canvas-wrapper:not(.has-img):hover { border-color: var(--primary); background: #f8fafc; }
@@ -78,6 +78,7 @@
         
         table { width: 100%; font-size: 0.65rem; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #334155; padding: 5px; text-align: center; }
+        
         #eraser-cursor { position: fixed; border: 2px solid white; border-radius: 50%; pointer-events: none; display: none; z-index: 9999; mix-blend-mode: difference; }
 
         .footer-note { margin-top: auto; text-align: center; font-size: 0.7rem; color: #475569; padding-top: 20px; padding-bottom: 5px; letter-spacing: 0.5px; }
@@ -94,9 +95,10 @@
         <h2>1. 图片导入与标定</h2>
         <input type="file" id="upload" accept="image/*" onclick="this.value=null">
         
-        <div style="font-size:0.75rem; color:#94a3b8; margin-top:10px;">X轴最大数值与单位: 
+        <div style="font-size:0.75rem; color:#94a3b8; margin-top:10px;">
+            X轴最大数值与单位 <span class="info-tip" data-tip="例如最大值设定为24，取点范围即为0-24。">i</span>: 
             <div style="display: flex; gap: 5px; margin-top: 5px;">
-                <input type="number" id="maxXValue" value="36" autocomplete="off" spellcheck="false" style="flex: 1; margin-top: 0;">
+                <input type="number" id="maxXValue" placeholder="必填" autocomplete="off" spellcheck="false" style="flex: 1; margin-top: 0;" onchange="checkAndAutoStartCalibration()" onkeyup="if(event.key === 'Enter') checkAndAutoStartCalibration()">
                 <select id="xUnit" style="flex: 1; margin-top: 0; cursor: pointer;">
                     <option value="M">月 (Months)</option>
                     <option value="Y">年 (Years)</option>
@@ -104,7 +106,7 @@
                 </select>
             </div>
         </div>
-        <button class="btn-g" style="margin-top:8px; font-size:0.75rem;" onclick="resetCalibration()">📍 重新标定坐标系</button>
+        <button class="btn-g" style="margin-top:8px; font-size:0.75rem;" onclick="startCalibration()">📍 重新标定坐标系</button>
     </div>
 
     <div class="tabs step-locked" id="tab-nav">
@@ -135,7 +137,7 @@
             </div>
             <input type="range" id="jumpSpan" min="1" max="40" value="3" oninput="document.getElementById('jump-val').innerText = this.value">
             
-            <button class="btn-p" style="margin-top:10px; font-size:0.9rem; padding:12px;" onclick="setMode('smart')">🪄 步骤2：锁定颜色后再次点击目标曲线</button>
+            <button class="btn-p" style="margin-top:10px; font-size:0.9rem; padding:12px;" onclick="setMode('smart')">🪄 步骤2：锁定颜色并去图上点击提取</button>
             
             <button class="btn-g" style="background:#334155; font-size:0.75rem; margin-top:5px;" onclick="clearData()">🧹 清除当前提取线条</button>
         </div>
@@ -189,10 +191,10 @@
 
 <div class="main-content">
     <div class="corner-logo-container">
-        <img src="logo.jpg" alt="KM Smart-Tracker V1.0 Logo" onerror="this.parentElement.style.display='none'; console.error('Logo file not found.')">
+        <img src="logo.jpg" alt="KM Smart-Tracker Logo" onerror="this.parentElement.style.display='none'; console.error('Logo file not found.')">
     </div>
 
-    <div id="nav-guide">💡 请上传图片或 Ctrl+V 粘贴截图</div>
+    <div id="nav-guide">💡 请导入图片，输入最大X轴数值后自动开始标定。</div>
     <div id="canvas-wrapper">
         <div id="paste-hint">🖼️ 点击此处选择图片<br>或按 Ctrl+V 粘贴截图开始任务</div>
         <canvas id="mainCanvas"></canvas>
@@ -218,7 +220,7 @@
     const fileInput = document.getElementById('upload');
     const hsvSwatch = document.getElementById('active-color-swatch');
 
-    let img = new Image(), mode = 'calibrate', calibration = [], points = [], targetHSV = null, targetRGB = null;
+    let img = new Image(), mode = 'idle', calibration = [], points = [], targetHSV = null, targetRGB = null;
     let isDrawing = false, lastProcessedData = [], lastProcessedData_B = [];
 
     function clearTextSelection() {
@@ -263,9 +265,24 @@
         return enrichedData;
     }
 
-    function resetCalibration() {
-        if (!img.src) return alert("请先载入图片！");
-        calibration = []; mode = 'calibrate';
+    // 🚀 核心逻辑更新：拆分开启标定的逻辑
+    function checkAndAutoStartCalibration() {
+        if (!img.src) return; 
+        if (calibration.length === 0) {
+            const maxXInput = document.getElementById('maxXValue').value;
+            if (maxXInput && !isNaN(maxXInput)) {
+                startCalibration();
+            }
+        }
+    }
+
+    function startCalibration() {
+        if (!img.src) return alert("请先导入图片！");
+        const maxXInput = document.getElementById('maxXValue').value;
+        if (!maxXInput || isNaN(maxXInput)) return alert("❌ 请先输入左侧【X轴最大数值】后，再开始标定！");
+
+        calibration = []; 
+        mode = 'calibrate';
         
         document.getElementById('tab-nav').classList.add('step-locked');
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -273,8 +290,19 @@
             c.classList.remove('active');
             c.classList.add('step-locked');
         });
+
+        targetRGB = null; targetHSV = null;
+        hsvSwatch.style.background = 'transparent';
+        document.getElementById('hsv-h').innerText = '--';
+        document.getElementById('hsv-s').innerText = '--';
+        document.getElementById('hsv-v').innerText = '--';
         
-        refreshCanvas(); guide.innerText = "🎯 重新标定: 请点击 原点 (0, 0)";
+        refreshCanvas(); 
+        guide.innerText = "🎯 步骤1: 请点击图中的 原点 (0, 0)";
+    }
+
+    function resetCalibration() {
+        startCalibration();
     }
 
     function switchTab(btn, targetId) {
@@ -314,13 +342,13 @@
         mode = m; 
         
         if (m === 'picker') {
-            guide.innerText = "✅ 已激活【吸取目标颜色】，请直接在图表上点击 (可反复确认)";
+            guide.innerText = "✅ 已激活【吸取目标颜色】，请将蓝色方框对准线条并点击";
         } else if (m === 'smart') {
             if (!targetRGB) {
                 mode = 'idle';
                 return alert("❌ 请先执行步骤1：吸取颜色！");
             }
-            guide.innerText = "✅ 已激活【智能提取】，颜色已锁定，请点击图上对应的曲线";
+            guide.innerText = "✅ 已激活【智能提取】，颜色已锁定，请将绿色方框对准目标曲线并点击";
         } else if (m === 'digitizer') {
             guide.innerText = "✅ 已激活【十字准星取点】，请直接在图表上点击";
         } else if (m === 'manual_add') {
@@ -336,7 +364,7 @@
         img = new Image(); ctx.clearRect(0,0,canvas.width,canvas.height);
         canvas.width = 300; canvas.height = 200;
         wrapper.classList.remove('has-img'); pasteHint.style.display = 'block';
-        calibration = []; points = []; targetHSV = null; targetRGB = null; mode = 'calibrate'; lastProcessedData = []; lastProcessedData_B = [];
+        calibration = []; points = []; targetHSV = null; targetRGB = null; mode = 'idle'; lastProcessedData = []; lastProcessedData_B = [];
         
         document.getElementById('tab-nav').classList.add('step-locked');
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -350,7 +378,11 @@
         document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">点击图表，坐标将记录于此</div>';
         hsvSwatch.style.background = "transparent"; fileInput.value = ""; 
         document.getElementById('hsv-h').innerText = "--"; document.getElementById('hsv-s').innerText = "--"; document.getElementById('hsv-v').innerText = "--";
-        guide.innerText = "💡 已全网页初始化。请导入新图片。"; zoomContainer.style.display = 'none';
+        
+        // 🚀 归零时清空输入框并重置提示
+        document.getElementById('maxXValue').value = "";
+        guide.innerText = "💡 请导入图片，输入最大X轴数值后自动开始标定。"; 
+        zoomContainer.style.display = 'none';
     }
 
     function initImage(source) {
@@ -358,7 +390,7 @@
         tempImg.onload = () => {
             img = tempImg; canvas.width = img.width; canvas.height = img.height;
             wrapper.classList.add('has-img'); pasteHint.style.display = 'none';
-            calibration = []; points = []; targetHSV = null; targetRGB = null; mode = 'calibrate'; lastProcessedData = []; lastProcessedData_B = [];
+            calibration = []; points = []; targetHSV = null; targetRGB = null; mode = 'idle'; lastProcessedData = []; lastProcessedData_B = [];
             
             document.getElementById('tab-nav').classList.add('step-locked');
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -369,7 +401,15 @@
             
             document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">点击图表，坐标将记录于此</div>';
             document.getElementById('table-output').innerHTML = ""; document.getElementById('table-output-b').innerHTML = "";
-            refreshCanvas(); guide.innerText = "🎯 步骤1: 请点击图中的 原点 (0, 0)";
+            refreshCanvas(); 
+            
+            // 🚀 核心优化：导入图片后的智能判断
+            const maxXInput = document.getElementById('maxXValue').value;
+            if (!maxXInput || isNaN(maxXInput)) {
+                guide.innerText = "💡 图片已导入。请在左侧输入【X轴最大数值】（输入后自动开启标定）。";
+            } else {
+                startCalibration();
+            }
         };
         tempImg.src = source;
     }
@@ -384,7 +424,11 @@
 
     function getMousePos(e) { const rect = canvas.getBoundingClientRect(); return { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) }; }
 
-    canvas.onmouseleave = () => { zoomContainer.style.display = 'none'; eraserCursor.style.display = 'none'; };
+    canvas.onmouseleave = () => { 
+        zoomContainer.style.display = 'none'; 
+        eraserCursor.style.display = 'none'; 
+        if (mode === 'calibrate' || mode === 'digitizer') refreshCanvas(); 
+    };
 
     canvas.onmousemove = (e) => {
         if (!img.src) return;
@@ -400,14 +444,54 @@
             document.getElementById('disp-x').innerText = "---"; document.getElementById('disp-y').innerText = "---";
         }
         
-        if (mode === 'eraser' || mode === 'manual_add' || mode === 'digitizer') {
-            const r = mode === 'digitizer' ? 4 : parseInt(document.getElementById('brushSize').value);
+        // 全屏十字准星辅助 (标定与手动取点模式)
+        if (mode === 'calibrate' || mode === 'digitizer') {
+            refreshCanvas();
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([4, 4]);
+
+            let cColor = 'rgba(59, 130, 246, 0.8)'; // default digitizer blue
+            if (mode === 'calibrate') {
+                if (calibration.length === 0) cColor = 'rgba(239, 68, 68, 0.8)'; // Red
+                if (calibration.length === 1) cColor = 'rgba(34, 197, 94, 0.8)'; // Green
+                if (calibration.length === 2) cColor = 'rgba(6, 182, 212, 0.8)'; // Cyan
+            }
+
+            ctx.strokeStyle = cColor;
+            ctx.lineWidth = 1;
+            ctx.moveTo(0, pos.y); ctx.lineTo(canvas.width, pos.y);
+            ctx.moveTo(pos.x, 0); ctx.lineTo(pos.x, canvas.height);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 🚀 彻底移除 digitizer 模式下的小圆圈，仅保留十字准星
+        if (mode === 'eraser' || mode === 'manual_add' || mode === 'picker' || mode === 'smart') {
             const rect = canvas.getBoundingClientRect(), ds = rect.width / canvas.width; 
-            eraserCursor.style.display = 'block'; eraserCursor.style.width = eraserCursor.style.height = (r * 2 * ds) + 'px';
-            eraserCursor.style.left = (e.clientX - r * ds) + 'px'; eraserCursor.style.top = (e.clientY - r * ds) + 'px';
-            eraserCursor.style.borderColor = mode === 'digitizer' ? '#3b82f6' : (mode === 'eraser' ? 'red' : '#facc15');
-            eraserCursor.style.borderRadius = mode === 'manual_add' ? '0%' : '50%';
-        } else { eraserCursor.style.display = 'none'; }
+            eraserCursor.style.display = 'block'; 
+
+            if (mode === 'picker') {
+                const sr = 4; const boxSize = (sr * 2 + 1) * ds;
+                eraserCursor.style.width = boxSize + 'px'; eraserCursor.style.height = boxSize + 'px';
+                eraserCursor.style.left = (e.clientX - boxSize / 2) + 'px'; eraserCursor.style.top = (e.clientY - boxSize / 2) + 'px';
+                eraserCursor.style.borderColor = '#0ea5e9'; eraserCursor.style.borderRadius = '0%'; eraserCursor.style.borderWidth = '2px';
+            } else if (mode === 'smart') {
+                const sr = 6; const boxSize = (sr * 2 + 1) * ds;
+                eraserCursor.style.width = boxSize + 'px'; eraserCursor.style.height = boxSize + 'px';
+                eraserCursor.style.left = (e.clientX - boxSize / 2) + 'px'; eraserCursor.style.top = (e.clientY - boxSize / 2) + 'px';
+                eraserCursor.style.borderColor = '#22c55e'; eraserCursor.style.borderRadius = '0%'; eraserCursor.style.borderWidth = '2px';
+            } else {
+                const r = parseInt(document.getElementById('brushSize').value);
+                eraserCursor.style.width = eraserCursor.style.height = (r * 2 * ds) + 'px';
+                eraserCursor.style.left = (e.clientX - r * ds) + 'px'; eraserCursor.style.top = (e.clientY - r * ds) + 'px';
+                eraserCursor.style.borderColor = mode === 'eraser' ? 'red' : '#facc15';
+                eraserCursor.style.borderRadius = mode === 'manual_add' ? '0%' : '50%';
+                eraserCursor.style.borderWidth = '2px';
+            }
+        } else { 
+            eraserCursor.style.display = 'none'; 
+        }
         
         if (isDrawing && mode === 'eraser') { points = points.filter(p => Math.hypot(p.x - pos.x, p.y - pos.y) > parseInt(document.getElementById('brushSize').value)); refreshCanvas(); }
     };
@@ -419,16 +503,81 @@
         if (mode === 'calibrate') { handleCalibration(pos); }
         else if (mode === 'picker') {
             const px = Math.round(pos.x), py = Math.round(pos.y);
-            const d = ctx.getImageData(px, py, 1, 1).data;
-            targetRGB = { r: d[0], g: d[1], b: d[2] }; targetHSV = rgbToHsv(d[0], d[1], d[2]);
-            hsvSwatch.style.background = `rgb(${d[0]},${d[1]},${d[2]})`;
+            const searchRadius = 4;
+            const imgData = ctx.getImageData(px - searchRadius, py - searchRadius, searchRadius * 2 + 1, searchRadius * 2 + 1).data;
+            
+            let maxColorDist = -1;
+            let bestR = 255, bestG = 255, bestB = 255;
+            
+            for (let i = 0; i < imgData.length; i += 4) {
+                const rVal = imgData[i], gVal = imgData[i+1], bVal = imgData[i+2], aVal = imgData[i+3];
+                if (aVal < 50) continue; 
+                
+                const distToWhite = Math.pow(255 - rVal, 2) + Math.pow(255 - gVal, 2) + Math.pow(255 - bVal, 2);
+                if (distToWhite > maxColorDist) {
+                    maxColorDist = distToWhite;
+                    bestR = rVal; bestG = gVal; bestB = bVal;
+                }
+            }
+            
+            targetRGB = { r: bestR, g: bestG, b: bestB }; 
+            targetHSV = rgbToHsv(bestR, bestG, bestB);
+            hsvSwatch.style.background = `rgb(${bestR},${bestG},${bestB})`;
             document.getElementById('hsv-h').innerText = Math.round(targetHSV.h * 360) + '°';
             document.getElementById('hsv-s').innerText = Math.round(targetHSV.s * 100) + '%';
             document.getElementById('hsv-v').innerText = Math.round(targetHSV.v * 100) + '%';
-            guide.innerText = "✅ 颜色已记录！如果准确，请点击左侧【步骤2】按钮"; 
+            guide.innerText = "✅ 颜色已锁定！系统已智能吸附线条最深色，请点击左侧【步骤2】"; 
         } 
         else if (mode === 'smart') { 
-            smartTrack(pos.x, pos.y);
+            if (!targetRGB) return alert("❌ 请先吸取颜色！");
+
+            const px = Math.round(pos.x), py = Math.round(pos.y);
+            const searchRadius = 6; 
+            const imgData = ctx.getImageData(px - searchRadius, py - searchRadius, searchRadius * 2 + 1, searchRadius * 2 + 1).data;
+            
+            const tol = parseInt(document.getElementById('tolerance').value);
+            const rgbThreshold = tol * 3.0; 
+            const isNeutral = targetHSV.s < 0.25 || targetHSV.v < 0.2;
+
+            let bestX = px, bestY = py;
+            let minDist = Infinity;
+            let idx = 0;
+
+            for (let dy = -searchRadius; dy <= searchRadius; dy++) {
+                for (let dx = -searchRadius; dx <= searchRadius; dx++) {
+                    const nx = px + dx, ny = py + dy;
+                    if (nx >= 0 && nx < canvas.width && ny >= 0 && ny < canvas.height) {
+                        const r = imgData[idx], g = imgData[idx+1], b = imgData[idx+2], a = imgData[idx+3];
+                        if (a >= 50 && !(r > 225 && g > 225 && b > 225)) { 
+                            let match = false;
+                            const hsv = rgbToHsv(r, g, b);
+                            if (isNeutral) {
+                                if (hsv && hsv.s < 0.3) {
+                                    const distC = Math.sqrt(Math.pow(r-targetRGB.r, 2) + Math.pow(g-targetRGB.g, 2) + Math.pow(b-targetRGB.b, 2));
+                                    if (distC <= rgbThreshold) match = true;
+                                }
+                            } else {
+                                if (hsv && hsv.s > 0.1) {
+                                    let hDiff = Math.abs(hsv.h - targetHSV.h);
+                                    if (hDiff > 0.5) hDiff = 1 - hDiff;
+                                    if (hDiff <= (tol / 360)) match = true;
+                                }
+                            }
+                            if (match) {
+                                const d = Math.hypot(dx, dy);
+                                if (d < minDist) {
+                                    minDist = d;
+                                    bestX = nx;
+                                    bestY = ny;
+                                }
+                            }
+                        }
+                    }
+                    idx += 4;
+                }
+            }
+
+            smartTrack(bestX, bestY);
             guide.innerText = "✅ 提取完成！可继续点击其他断点处补充，或进行修补";
         }
         else if (mode === 'digitizer') {
@@ -510,8 +659,6 @@
     }
 
     function smartTrack(sx, sy) {
-        if (!targetRGB) return alert("❌ 请先吸取颜色！");
-        
         const imageData = ctx.getImageData(0,0,canvas.width,canvas.height), data = imageData.data;
         const tol = parseInt(document.getElementById('tolerance').value);
         const jumpSpan = parseInt(document.getElementById('jumpSpan').value);
