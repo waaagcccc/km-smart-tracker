@@ -80,7 +80,7 @@
         table { width: 100%; font-size: 0.65rem; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #334155; padding: 5px; text-align: center; }
         
-        #eraser-cursor { position: fixed; border: 2px solid white; border-radius: 50%; pointer-events: none; display: none; z-index: 9999; mix-blend-mode: difference; }
+        #eraser-cursor { position: fixed; border: 2px solid white; border-radius: 50%; pointer-events: none; display: none; z-index: 9999; box-shadow: 0 0 4px rgba(0,0,0,0.4); box-sizing: border-box; transform: translate(-50%, -50%); }
 
         .footer-note { margin-top: auto; text-align: center; font-size: 0.7rem; color: #475569; padding-top: 20px; padding-bottom: 5px; letter-spacing: 0.5px; }
     </style>
@@ -117,7 +117,7 @@
             </div>
         </div>
         
-        <button class="btn-g" style="margin-top:15px; font-size:0.75rem;" onclick="resetCalibration()">📍 如果坐标系标定错误，点击重新标定</button>
+        <button class="btn-g" style="margin-top:15px; font-size:0.75rem;" onclick="startCalibration(false)">📍 如果坐标系标定错误，点击重新标定</button>
     </div>
 
     <div class="tabs step-locked" id="tab-nav">
@@ -147,7 +147,7 @@
             </div>
             <input type="range" id="jumpSpan" min="1" max="40" value="3" oninput="document.getElementById('jump-val').innerText = this.value">
             
-            <button class="btn-p" style="margin-top:10px; font-size:0.9rem; padding:12px;" onclick="setMode('smart')">🪄 步骤2：锁定颜色并去图上点击提取</button>
+            <button class="btn-p" style="margin-top:10px; font-size:0.9rem; padding:12px;" onclick="setMode('smart')">🪄 步骤2：锁定颜色后再次点击目标曲线</button>
             
             <button class="btn-g" style="background:#334155; font-size:0.75rem; margin-top:5px;" onclick="clearData()">🧹 清除当前提取线条</button>
         </div>
@@ -167,7 +167,7 @@
 
         <div class="card">
             <h2>计算与导出</h2>
-            <input type="text" id="targetX" value="12, 24, 36" placeholder="输入要提取的时间点 (如 6, 12, 24)" autocomplete="off" spellcheck="false" onwheel="this.blur()">
+            <input type="text" id="targetX" value="" placeholder="输入要提取的时间点 (如 6, 12, 24)" autocomplete="off" spellcheck="false" onwheel="this.blur()">
             <button class="btn-p" style="background:#059669; margin-top:5px;" onclick="processData()">📊 生成预览表格</button>
             <button class="btn-g" style="background:#0d9488; font-size:0.75rem" onclick="exportToCSV_A()">💾 导出 CSV 文件</button>
             <div id="table-output"></div>
@@ -282,15 +282,18 @@
 
     function handleMaxXChange() {
         if (!img.src) return;
+        const maxXInput = document.getElementById('maxXValue').value;
+        
         if (calibration.length === 3) {
             checkAndUnlockTabs();
+        } else if (calibration.length === 0 && maxXInput && !isNaN(maxXInput)) {
+            startCalibration(true);
         }
     }
 
     function startCalibration(isAuto = false) {
         if (!img.src) return alert("请先导入图片！");
 
-        // 🚀 核心修复：移除检查输入框的代码，直接允许开启标定
         calibration = []; 
         mode = 'calibrate'; 
         
@@ -380,7 +383,7 @@
         mode = m; 
         
         if (m === 'picker') {
-            guide.innerText = "✅ 已激活【吸取目标颜色】，请将蓝色方框对准线条并点击";
+            guide.innerText = "✅ 已激活【吸取目标颜色】，请将绿色方框对准线条并点击";
         } else if (m === 'smart') {
             if (!targetRGB) {
                 mode = 'idle';
@@ -515,20 +518,21 @@
             const rect = canvas.getBoundingClientRect(), ds = rect.width / canvas.width; 
             eraserCursor.style.display = 'block'; 
 
-            if (mode === 'picker') {
-                const sr = 4; const boxSize = (sr * 2 + 1) * ds;
-                eraserCursor.style.width = boxSize + 'px'; eraserCursor.style.height = boxSize + 'px';
-                eraserCursor.style.left = (e.clientX - boxSize / 2) + 'px'; eraserCursor.style.top = (e.clientY - boxSize / 2) + 'px';
-                eraserCursor.style.borderColor = '#0ea5e9'; eraserCursor.style.borderRadius = '0%'; eraserCursor.style.borderWidth = '2px';
-            } else if (mode === 'smart') {
-                const sr = 6; const boxSize = (sr * 2 + 1) * ds;
-                eraserCursor.style.width = boxSize + 'px'; eraserCursor.style.height = boxSize + 'px';
-                eraserCursor.style.left = (e.clientX - boxSize / 2) + 'px'; eraserCursor.style.top = (e.clientY - boxSize / 2) + 'px';
-                eraserCursor.style.borderColor = '#22c55e'; eraserCursor.style.borderRadius = '0%'; eraserCursor.style.borderWidth = '2px';
+            if (mode === 'picker' || mode === 'smart') {
+                const sr = 10; 
+                const boxSize = (sr * 2 + 1) * ds;
+                eraserCursor.style.width = boxSize + 'px'; 
+                eraserCursor.style.height = boxSize + 'px';
+                eraserCursor.style.left = e.clientX + 'px'; 
+                eraserCursor.style.top = e.clientY + 'px';
+                eraserCursor.style.borderColor = '#22c55e';
+                eraserCursor.style.borderRadius = '0%'; 
+                eraserCursor.style.borderWidth = '2px';
             } else {
                 const r = parseInt(document.getElementById('brushSize').value);
                 eraserCursor.style.width = eraserCursor.style.height = (r * 2 * ds) + 'px';
-                eraserCursor.style.left = (e.clientX - r * ds) + 'px'; eraserCursor.style.top = (e.clientY - r * ds) + 'px';
+                eraserCursor.style.left = e.clientX + 'px'; 
+                eraserCursor.style.top = e.clientY + 'px';
                 eraserCursor.style.borderColor = mode === 'eraser' ? 'red' : '#facc15';
                 eraserCursor.style.borderRadius = mode === 'manual_add' ? '0%' : '50%';
                 eraserCursor.style.borderWidth = '2px';
@@ -547,7 +551,7 @@
         if (mode === 'calibrate') { handleCalibration(pos); }
         else if (mode === 'picker') {
             const px = Math.round(pos.x), py = Math.round(pos.y);
-            const searchRadius = 4;
+            const searchRadius = 10; 
             const imgData = ctx.getImageData(px - searchRadius, py - searchRadius, searchRadius * 2 + 1, searchRadius * 2 + 1).data;
             
             let maxColorDist = -1;
@@ -576,7 +580,7 @@
             if (!targetRGB) return alert("❌ 请先吸取颜色！");
 
             const px = Math.round(pos.x), py = Math.round(pos.y);
-            const searchRadius = 6; 
+            const searchRadius = 10; 
             const imgData = ctx.getImageData(px - searchRadius, py - searchRadius, searchRadius * 2 + 1, searchRadius * 2 + 1).data;
             
             const tol = parseInt(document.getElementById('tolerance').value);
@@ -658,8 +662,9 @@
             document.getElementById('calib-status').innerHTML = "✅ 已标定";
             document.getElementById('calib-status').style.color = "var(--success)";
             
-            // 🚀 核心修复：完成标定后，解锁输入框让用户填数字，取消强制检查弹窗
+            // 🚀 核心修复：标定完成后立刻解锁输入框！
             document.getElementById('maxX-container').classList.remove('step-locked');
+            
             mode = 'idle'; 
             guide.innerText = "💡 标定完成！请在左侧输入【分析时间的最大值】解锁提取功能。";
             document.getElementById('maxXValue').focus();
