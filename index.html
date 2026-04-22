@@ -60,7 +60,8 @@
         .reset-all-btn { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; margin-bottom: 5px; }
 
         input[type="text"], input[type="number"], select { width: 100%; padding: 10px; margin-top: 5px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white; box-sizing: border-box; font-family: inherit; }
-
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin: 8px 0; }
         input[type=range]:focus { outline: none; }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; background: #334155; border-radius: 3px; border: 1px solid #1e293b; cursor: pointer; }
@@ -68,7 +69,7 @@
 
         .label-group { display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: #94a3b8; margin-top: 10px; }
         .info-tip { display: inline-block; width: 14px; height: 14px; background: #475569; color: #fff; border-radius: 50%; text-align: center; line-height: 14px; font-size: 10px; cursor: help; margin-left: 5px; position: relative; }
-        .info-tip:hover::after { content: attr(data-tip); position: absolute; left: 20px; top: 0; width: 220px; background: #1e293b; color: #f1f5f9; padding: 8px; border-radius: 4px; border: 1px solid #8b5cf6; z-index: 100; text-align: left; line-height: 1.4; font-weight: normal; font-size: 0.7rem;}
+        .info-tip:hover::after { content: attr(data-tip); position: absolute; left: 20px; top: 0; width: 240px; background: #1e293b; color: #f1f5f9; padding: 8px; border-radius: 4px; border: 1px solid #8b5cf6; z-index: 100; text-align: left; line-height: 1.4; font-weight: normal; font-size: 0.7rem;}
 
         #digitize-list { max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 6px; margin-top: 8px; font-size: 0.7rem; padding: 5px; border: 1px solid #334155; }
         .digitize-item { display: flex; justify-content: space-between; padding: 5px 8px; border-bottom: 1px solid #1e293b; font-family: monospace; }
@@ -93,12 +94,21 @@
 
     <div class="card" id="card-1">
         <h2>1. 图片导入与标定</h2>
-        <input type="file" id="upload" accept="image/*" onclick="this.value=null">
         
-        <div style="font-size:0.75rem; color:#94a3b8; margin-top:10px;">
-            X轴最大数值与单位 <span class="info-tip" data-tip="例如最大值设定为24，取点范围即为0-24。">i</span>: 
+        <div style="display:flex; align-items:center; gap: 10px;">
+            <input type="file" id="upload" accept="image/*" onclick="this.value=null" style="flex:1; padding: 6px;">
+            <span id="upload-status" style="color:#94a3b8; font-size:0.75rem; white-space:nowrap;">等待导入...</span>
+        </div>
+        
+        <div style="display:flex; align-items:center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #334155;">
+            <div style="font-size:0.75rem; color:#94a3b8; flex:1;">坐标系标定状态:</div>
+            <span id="calib-status" style="color:#94a3b8; font-size:0.75rem; white-space:nowrap;">未开始</span>
+        </div>
+        
+        <div style="font-size:0.75rem; color:#94a3b8; margin-top:15px;" id="maxX-container" class="step-locked">
+            分析时间的最大值 <span class="info-tip" data-tip="例如最大值设定为24，取点范围即为0-24。即绿色圆圈对应的时间点。">i</span>: 
             <div style="display: flex; gap: 5px; margin-top: 5px;">
-                <input type="number" id="maxXValue" placeholder="必填" autocomplete="off" spellcheck="false" style="flex: 1; margin-top: 0;" onchange="checkAndAutoStartCalibration()" onkeyup="if(event.key === 'Enter') checkAndAutoStartCalibration()">
+                <input type="number" id="maxXValue" placeholder="必填" autocomplete="off" spellcheck="false" style="flex: 1; margin-top: 0;" onchange="handleMaxXChange()" onkeyup="if(event.key === 'Enter') handleMaxXChange()" onwheel="this.blur()">
                 <select id="xUnit" style="flex: 1; margin-top: 0; cursor: pointer;">
                     <option value="M">月 (Months)</option>
                     <option value="Y">年 (Years)</option>
@@ -106,19 +116,19 @@
                 </select>
             </div>
         </div>
-        <button class="btn-g" style="margin-top:8px; font-size:0.75rem;" onclick="startCalibration()">📍 重新标定坐标系</button>
+        
+        <button class="btn-g" style="margin-top:15px; font-size:0.75rem;" onclick="resetCalibration()">📍 如果坐标系标定错误，点击重新标定</button>
     </div>
 
     <div class="tabs step-locked" id="tab-nav">
         <button class="tab-btn" onclick="switchTab(this, 'mode-a-ui')">方案A: 自动识别</button>
         <button class="tab-btn" onclick="switchTab(this, 'mode-b-ui')">方案B: 手动取点</button>
-        <button class="tab-btn" onclick="alert('方案C（图像直接分析）正在加紧研发中，敬请期待！')">方案C: AI分析</button>
     </div>
 
     <div id="mode-a-ui" class="tab-content step-locked">
         <div class="card">
             <h2>方案A: 自动识别</h2>
-            <button class="btn-g" onclick="setMode('picker')">🖊️ 步骤1：吸取目标颜色 (可反复点)</button>
+            <button class="btn-p" onclick="setMode('picker')">🖊️ 步骤1：吸取目标颜色 (可反复点)</button>
             
             <div id="color-monitor">
                 <div id="active-color-swatch" style="background: transparent;"></div>
@@ -157,7 +167,7 @@
 
         <div class="card">
             <h2>计算与导出</h2>
-            <input type="text" id="targetX" value="12, 24, 36" placeholder="输入要提取的时间点 (如 6, 12, 24)" autocomplete="off" spellcheck="false">
+            <input type="text" id="targetX" value="12, 24, 36" placeholder="输入要提取的时间点 (如 6, 12, 24)" autocomplete="off" spellcheck="false" onwheel="this.blur()">
             <button class="btn-p" style="background:#059669; margin-top:5px;" onclick="processData()">📊 生成预览表格</button>
             <button class="btn-g" style="background:#0d9488; font-size:0.75rem" onclick="exportToCSV_A()">💾 导出 CSV 文件</button>
             <div id="table-output"></div>
@@ -194,7 +204,7 @@
         <img src="logo.jpg" alt="KM Smart-Tracker Logo" onerror="this.parentElement.style.display='none'; console.error('Logo file not found.')">
     </div>
 
-    <div id="nav-guide">💡 请导入图片，输入最大X轴数值后自动开始标定。</div>
+    <div id="nav-guide">💡 请导入图片开始任务。</div>
     <div id="canvas-wrapper">
         <div id="paste-hint">🖼️ 点击此处选择图片<br>或按 Ctrl+V 粘贴截图开始任务</div>
         <canvas id="mainCanvas"></canvas>
@@ -208,6 +218,11 @@
 <div id="eraser-cursor"></div>
 
 <script>
+    // 全局拦截鼠标中键行为，防止误触自动滚动页面功能导致数值乱跳
+    window.addEventListener('mousedown', function(e) {
+        if (e.button === 1) e.preventDefault();
+    });
+
     const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const zoomContainer = document.getElementById('zoom-container');
@@ -265,24 +280,24 @@
         return enrichedData;
     }
 
-    // 🚀 核心逻辑更新：拆分开启标定的逻辑
-    function checkAndAutoStartCalibration() {
-        if (!img.src) return; 
-        if (calibration.length === 0) {
-            const maxXInput = document.getElementById('maxXValue').value;
-            if (maxXInput && !isNaN(maxXInput)) {
-                startCalibration();
-            }
+    function handleMaxXChange() {
+        if (!img.src) return;
+        if (calibration.length === 3) {
+            checkAndUnlockTabs();
         }
     }
 
-    function startCalibration() {
+    function startCalibration(isAuto = false) {
         if (!img.src) return alert("请先导入图片！");
-        const maxXInput = document.getElementById('maxXValue').value;
-        if (!maxXInput || isNaN(maxXInput)) return alert("❌ 请先输入左侧【X轴最大数值】后，再开始标定！");
 
+        // 🚀 核心修复：移除检查输入框的代码，直接允许开启标定
         calibration = []; 
-        mode = 'calibrate';
+        mode = 'calibrate'; 
+        
+        document.getElementById('calib-status').innerHTML = "⏳ 请在右侧图上进行标定";
+        document.getElementById('calib-status').style.color = "var(--warning)";
+        
+        document.getElementById('maxX-container').classList.add('step-locked');
         
         document.getElementById('tab-nav').classList.add('step-locked');
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -298,11 +313,34 @@
         document.getElementById('hsv-v').innerText = '--';
         
         refreshCanvas(); 
-        guide.innerText = "🎯 步骤1: 请点击图中的 原点 (0, 0)";
+        
+        if (isAuto) {
+            guide.innerText = "💡 图片已导入，请在图中依次标定原点(0,0)";
+        } else {
+            guide.innerText = "🎯 重新标定: 请在图中依次标定原点(0,0)";
+        }
     }
 
     function resetCalibration() {
-        startCalibration();
+        startCalibration(false);
+    }
+
+    function checkAndUnlockTabs() {
+        if (calibration.length === 3) {
+            const maxXInput = document.getElementById('maxXValue').value;
+            if (maxXInput && !isNaN(maxXInput)) {
+                document.getElementById('tab-nav').classList.remove('step-locked');
+                guide.innerText = "✅ 准备就绪！👉 请在左侧点击选择【方案A】或【方案B】开始提取";
+            } else {
+                document.getElementById('tab-nav').classList.add('step-locked');
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => {
+                    c.classList.remove('active');
+                    c.classList.add('step-locked');
+                });
+                guide.innerText = "💡 标定完成！请在左侧输入【分析时间的最大值】解锁提取功能。";
+            }
+        }
     }
 
     function switchTab(btn, targetId) {
@@ -366,6 +404,14 @@
         wrapper.classList.remove('has-img'); pasteHint.style.display = 'block';
         calibration = []; points = []; targetHSV = null; targetRGB = null; mode = 'idle'; lastProcessedData = []; lastProcessedData_B = [];
         
+        document.getElementById('upload-status').innerHTML = "等待导入...";
+        document.getElementById('upload-status').style.color = "#94a3b8";
+        document.getElementById('calib-status').innerHTML = "未开始";
+        document.getElementById('calib-status').style.color = "#94a3b8";
+        
+        document.getElementById('maxX-container').classList.add('step-locked');
+        document.getElementById('maxXValue').value = "";
+        
         document.getElementById('tab-nav').classList.add('step-locked');
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => {
@@ -379,9 +425,7 @@
         hsvSwatch.style.background = "transparent"; fileInput.value = ""; 
         document.getElementById('hsv-h').innerText = "--"; document.getElementById('hsv-s').innerText = "--"; document.getElementById('hsv-v').innerText = "--";
         
-        // 🚀 归零时清空输入框并重置提示
-        document.getElementById('maxXValue').value = "";
-        guide.innerText = "💡 请导入图片，输入最大X轴数值后自动开始标定。"; 
+        guide.innerText = "💡 请导入图片开始任务。"; 
         zoomContainer.style.display = 'none';
     }
 
@@ -392,6 +436,12 @@
             wrapper.classList.add('has-img'); pasteHint.style.display = 'none';
             calibration = []; points = []; targetHSV = null; targetRGB = null; mode = 'idle'; lastProcessedData = []; lastProcessedData_B = [];
             
+            document.getElementById('upload-status').innerHTML = "✅ 已导入";
+            document.getElementById('upload-status').style.color = "var(--success)";
+            
+            document.getElementById('maxX-container').classList.add('step-locked');
+            document.getElementById('maxXValue').value = "";
+            
             document.getElementById('tab-nav').classList.add('step-locked');
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => {
@@ -401,15 +451,11 @@
             
             document.getElementById('digitize-list').innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">点击图表，坐标将记录于此</div>';
             document.getElementById('table-output').innerHTML = ""; document.getElementById('table-output-b').innerHTML = "";
-            refreshCanvas(); 
             
-            // 🚀 核心优化：导入图片后的智能判断
-            const maxXInput = document.getElementById('maxXValue').value;
-            if (!maxXInput || isNaN(maxXInput)) {
-                guide.innerText = "💡 图片已导入。请在左侧输入【X轴最大数值】（输入后自动开启标定）。";
-            } else {
-                startCalibration();
-            }
+            refreshCanvas();
+            
+            // 图片一导入，立刻强制进入标定模式
+            startCalibration(true); 
         };
         tempImg.src = source;
     }
@@ -444,18 +490,17 @@
             document.getElementById('disp-x').innerText = "---"; document.getElementById('disp-y').innerText = "---";
         }
         
-        // 全屏十字准星辅助 (标定与手动取点模式)
         if (mode === 'calibrate' || mode === 'digitizer') {
             refreshCanvas();
             ctx.save();
             ctx.beginPath();
             ctx.setLineDash([4, 4]);
 
-            let cColor = 'rgba(59, 130, 246, 0.8)'; // default digitizer blue
+            let cColor = 'rgba(59, 130, 246, 0.8)'; 
             if (mode === 'calibrate') {
-                if (calibration.length === 0) cColor = 'rgba(239, 68, 68, 0.8)'; // Red
-                if (calibration.length === 1) cColor = 'rgba(34, 197, 94, 0.8)'; // Green
-                if (calibration.length === 2) cColor = 'rgba(6, 182, 212, 0.8)'; // Cyan
+                if (calibration.length === 0) cColor = 'rgba(239, 68, 68, 0.8)'; 
+                if (calibration.length === 1) cColor = 'rgba(34, 197, 94, 0.8)'; 
+                if (calibration.length === 2) cColor = 'rgba(6, 182, 212, 0.8)'; 
             }
 
             ctx.strokeStyle = cColor;
@@ -466,7 +511,6 @@
             ctx.restore();
         }
 
-        // 🚀 彻底移除 digitizer 模式下的小圆圈，仅保留十字准星
         if (mode === 'eraser' || mode === 'manual_add' || mode === 'picker' || mode === 'smart') {
             const rect = canvas.getBoundingClientRect(), ds = rect.width / canvas.width; 
             eraserCursor.style.display = 'block'; 
@@ -590,11 +634,12 @@
     window.onmouseup = () => isDrawing = false;
 
     function calculateRealValue(pos) {
-        const maxXVal = parseFloat(document.getElementById('maxXValue').value);
+        const maxXInput = document.getElementById('maxXValue').value;
+        const maxXVal = parseFloat(maxXInput) || 0;
         const origin = calibration[0], xRef = calibration[1], yRef = calibration[2];
         let tx = ((pos.x - origin.x) / (xRef.x - origin.x)) * maxXVal;
         let ty = 1 - ((pos.y - yRef.y) / (origin.y - yRef.y));
-        return { time: tx.toFixed(2), rate: Math.max(0, ty).toFixed(4) };
+        return { time: maxXInput ? tx.toFixed(2) : "---", rate: Math.max(0, ty).toFixed(4) };
     }
 
     function updateDigitizeList(val) {
@@ -605,13 +650,19 @@
     }
 
     function handleCalibration(pos) {
-        if (calibration.length === 0) { calibration.push(pos); drawMarker(pos.x, pos.y, 'red'); guide.innerText = "🎯 步骤2: 点击 X 轴最大点"; }
-        else if (calibration.length === 1) { calibration.push(pos); drawMarker(pos.x, pos.y, '#0f0'); guide.innerText = "🎯 步骤3: 点击 Y 轴最高点 (1.0)"; }
+        if (calibration.length === 0) { calibration.push(pos); drawMarker(pos.x, pos.y, 'red'); guide.innerText = "🎯 标定X轴分析时间的最大值"; }
+        else if (calibration.length === 1) { calibration.push(pos); drawMarker(pos.x, pos.y, '#0f0'); guide.innerText = "🎯 标定Y轴最高点(0,1)"; }
         else if (calibration.length === 2) { 
             calibration.push(pos); drawMarker(pos.x, pos.y, '#0ef'); 
-            guide.innerText = "✅ 标定成功！👉 请在左侧点击选择【方案A】或【方案B】解锁功能";
-            document.getElementById('tab-nav').classList.remove('step-locked'); 
+            
+            document.getElementById('calib-status').innerHTML = "✅ 已标定";
+            document.getElementById('calib-status').style.color = "var(--success)";
+            
+            // 🚀 核心修复：完成标定后，解锁输入框让用户填数字，取消强制检查弹窗
+            document.getElementById('maxX-container').classList.remove('step-locked');
             mode = 'idle'; 
+            guide.innerText = "💡 标定完成！请在左侧输入【分析时间的最大值】解锁提取功能。";
+            document.getElementById('maxXValue').focus();
         }
         refreshCanvas();
     }
